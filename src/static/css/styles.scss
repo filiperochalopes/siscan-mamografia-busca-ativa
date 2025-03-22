@@ -1,0 +1,13 @@
+// Exemplo de arquivo SCSS
+// Para compilar: utilize um compilador SASS (ex: sass static/scss/style.scss static/css/style.css)
+
+$primary-color: #3490dc;
+
+body {
+  font-family: sans-serif;
+  background-color: #f7fafc;
+}
+
+h1 {
+  color: $primary-color;
+}

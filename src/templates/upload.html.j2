@@ -1,0 +1,103 @@
+{% extends "base.html.j2" %}
+
+{% block title %}Página de Upload{% endblock %}
+
+{% block head %}
+<style>
+  /* Overlay de carregamento */
+  #overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    font-size: 2rem;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  /* Desabilita interação quando necessário */
+  .disabled {
+    pointer-events: none;
+    opacity: 0.5;
+  }
+  /* Área de upload com 40% da altura da viewport */
+  #uploadArea {
+    height: 40vh;
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<div id="overlay" class="flex">Carregando...</div>
+
+<!-- Cabeçalho -->
+<header class="p-4 bg-blue-500 text-white">
+  <h1 class="text-center text-2xl">Upload de Arquivo</h1>
+</header>
+
+<!-- Área principal -->
+<main class="p-4">
+  <form id="uploadForm" method="POST" enctype="multipart/form-data">
+    <div id="uploadArea" class="border-dashed border-4 border-gray-400 flex justify-center items-center my-4">
+      <input type="file" name="file" id="fileInput" class="hidden" {% if processing_done %}disabled{% endif %}>
+      <label for="fileInput" class="cursor-pointer">Arraste e solte ou clique para selecionar um arquivo</label>
+    </div>
+    {% if processing_done %}
+      <!-- Botão de download após o processamento -->
+      <button type="button" id="downloadBtn" class="bg-green-500 text-white p-2">Baixar planilha</button>
+      <script>
+        document.getElementById("downloadBtn").addEventListener("click", function() {
+          window.location.href = "{{ url_for('download') }}";
+        });
+      </script>
+    {% else %}
+      <button type="submit" class="bg-blue-500 text-white p-2">Enviar</button>
+    {% endif %}
+  </form>
+  <!-- Campo de log para mensagens -->
+  <div id="log" class="mt-4">
+    {% if processing_done %}
+      <p>Processamento concluído com sucesso! Recarregue a página para enviar um novo arquivo.</p>
+    {% endif %}
+  </div>
+</main>
+
+<script>
+  // Eventos para drag'n drop na área de upload
+  const fileInput = document.getElementById("fileInput");
+  const uploadArea = document.getElementById("uploadArea");
+  
+  uploadArea.addEventListener("click", () => {
+    fileInput.click();
+  });
+  
+  uploadArea.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    uploadArea.classList.add("bg-gray-200");
+  });
+  
+  uploadArea.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove("bg-gray-200");
+  });
+  
+  uploadArea.addEventListener("drop", (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove("bg-gray-200");
+    if(e.dataTransfer.files.length > 0) {
+      fileInput.files = e.dataTransfer.files;
+    }
+  });
+  
+  // Exibe overlay "Carregando" ao submeter o formulário
+  const uploadForm = document.getElementById("uploadForm");
+  uploadForm.addEventListener("submit", function() {
+    fileInput.disabled = true;
+    document.getElementById("overlay").style.display = "flex";
+  });
+</script>
+{% endblock %}

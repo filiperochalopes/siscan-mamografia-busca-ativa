@@ -1,0 +1,27 @@
+{% extends "base.html.j2" %}
+
+{% block title %}Página de Login{% endblock %}
+
+{% block body %}
+<div class="flex items-center justify-center h-screen">
+  <div class="bg-white p-8 rounded shadow-md">
+    <h1 class="text-2xl mb-4 text-center">Login</h1>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="mb-4">
+          {% for message in messages %}
+            <p class="text-red-500">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    <form method="POST">
+      <div class="mb-4">
+        <label for="token" class="block text-gray-700">Token:</label>
+        <input type="text" name="token" id="token" class="border rounded w-full p-2" placeholder="Digite seu token">
+      </div>
+      <button type="submit" class="bg-blue-500 text-white p-2 w-full">Entrar</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
