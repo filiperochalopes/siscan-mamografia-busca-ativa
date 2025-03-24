@@ -1,1 +1,12 @@
+resultado_laudos.*
+
+
+# Ignora configurações e arquivos de ambiente de desenvolvimento
+# Configuração do ambiente de desenvolvimento do IntelliJ/IDEA
+.idea/
+# Diretório de cache de bytecode Python
+__pycache__/
+# Ignora ambientes virtuais Python, incluindo o diretório padrão `.venv`
+.venv
 .env
+
