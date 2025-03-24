@@ -20,8 +20,7 @@ pd.set_option("display.expand_frame_repr",
 
 
 # Com pytest
-# pytest tabnet_framework/tests/test_siscan.py::TestSiscan::test_all_report_all_options
-# pytest tabnet_framework/tests/test_siscan.py::TestSiscan::test_all_report_all_options_for_sex
+# pytest src.extrator_laudo.tests.test_extrai_lado_mamografia.TestExtrator.test_extrair_laudo
 
 
 class TestExtrator(unittest.TestCase):
