@@ -57,11 +57,12 @@ class TestExtrator(unittest.TestCase):
         extrator = SiscanReportMammographyExtract(diretorio_dos_pdf,
                                                   diretorio_dos_resultados)
         all_pages_pending_lines, df = extrator.process(
-            selected_pages=[129]) # [1, 84, 96, 129, 221]
+            selected_pages=[1, 84, 96, 129, 221]) # [1, 84, 96, 129, 221]
 
         caminho_excel = os.path.join(diretorio_dos_resultados,
                                      'resultado_laudos.xlsx')
-        extrator.save_to_excel(caminho_excel)
+
+        extrator.save_to_excel(caminho_excel, sorted(extrator.df.columns))
 
         fim = time.time()
         print(f"Tempo de execução: {fim - inicio:.4f} segundos")
