@@ -45,17 +45,23 @@ class TestExtrator(unittest.TestCase):
 
         base_dir = Path(__file__).resolve().parent
         diretorio_dos_pdf = os.path.join(base_dir, "laudos")
-        caminho_txt = './resultado_laudos.txt'
-        caminho_excel = './resultado_laudos.xlsx'
 
-        caminho_txt = 'resultado_laudos.txt'
-        caminho_excel = 'resultado_laudos.xlsx'
+        diretorio_dos_resultados = os.path.join(base_dir, "resultado")
+        os.makedirs(diretorio_dos_resultados, exist_ok=True)
+
+        # caminho_txt = os.path.join(base_dir, 'resultado',
+        #                            'resultado_laudos.txt')
 
         inicio = time.time()
 
         extrator = SiscanReportMammographyExtract(diretorio_dos_pdf,
-                                                  caminho_txt, caminho_excel)
-        all_pages_pending_lines, df = extrator.process()
+                                                  diretorio_dos_resultados)
+        all_pages_pending_lines, df = extrator.process(
+            selected_pages=[84, 96, 129, 221])
+
+        caminho_excel = os.path.join(diretorio_dos_resultados,
+                                     'resultado_laudos.xlsx')
+        extrator.save_to_excel(caminho_excel)
 
         fim = time.time()
         print(f"Tempo de execução: {fim - inicio:.4f} segundos")
@@ -63,3 +69,14 @@ class TestExtrator(unittest.TestCase):
         print(json.dumps(all_pages_pending_lines, indent=4, ensure_ascii=False))
 
         df.head()
+
+    def test_extrair_metadados(self):
+        base_dir = Path(__file__).resolve().parent
+        path_laudo = os.path.join(base_dir, "laudos", "detalheRelatorioLaudos (42).pdf")
+
+        SiscanReportMammographyExtract.gerar_amostra_com_coordenadas(path_laudo)
+
+
+
+
+

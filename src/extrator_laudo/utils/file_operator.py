@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class FileOperator:
     @staticmethod
-    def salve_text_file(output_file: str, lines: List[str], text_extra:str):
+    def salve_text_file(output_file: str, lines: List[str], text_extra: str):
         # Salvando no arquivo de texto no modo append ("a")
         with open(output_file, "a", encoding="utf-8") as f:
             f.write(text_extra + "\n")
