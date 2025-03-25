@@ -1,12 +1,12 @@
+import json
 import logging
 import os
 import re
 from abc import ABC, abstractmethod
-from typing import Optional, Any, Dict, List, Tuple
+from typing import Optional, Any, Dict, List, Tuple, Set
 
 import fitz
 import pandas as pd
-import pdfplumber
 
 from src.extrator_laudo.exceptions import EmptyDocumentError
 from src.extrator_laudo.utils.file_operator import FileOperator
@@ -28,7 +28,6 @@ class SiscanReportExtractor(ABC):
         self._input_directory_path_report = input_directory_path_report
         self._result_output_directory = result_output_directory
         self._df = None
-        self._lines = None
 
     @property
     def df(self) -> pd.DataFrame:
@@ -44,22 +43,9 @@ class SiscanReportExtractor(ABC):
         return self._df
 
     @property
-    def lines(self) -> List[str]:
+    def _text_output(self) -> str:
         """
-        Retorna a lista de linhas extraídas do PDF.
-
-        Returns:
-            List[str]: Lista de strings contendo as linhas extraídas.
-        """
-        if self._lines is None:
-            raise RuntimeError("Método `process` deve ser chamado antes de "
-                               "acessar as linhas extraídas.")
-        return self._lines
-
-    @property
-    def _filepath_destination_text(self) -> str:
-        """
-        Retorna o caminho completo do arquivo texto de destino.
+        Retorna o caminho completo do arquivo com o texto extraído do pdf.
 
         Returns:
             str: Caminho completo do arquivo texto de destino.
@@ -68,23 +54,58 @@ class SiscanReportExtractor(ABC):
                             "resultado_extracao.txt")
 
     @abstractmethod
-    def get_sections_all(self) -> List[str]:
+    def get_sections_all(self) -> Dict[str, Dict[str, Any]]:
         """
-        Método abstrato para retornar um dicionário contendo todas as seções esperadas no laudo.
+        Retorna o dicionário contendo todas as seções esperadas no laudo,
+        incluindo os campos principais, subseções e coordenadas opcionais
+        associadas a cada seção.
 
         Returns:
-            List[str]: Lista contendo as seções do laudo.
+            Dict[str, Dict[str, Any]]: Dicionário onde cada chave é o nome de
+            uma seção do laudo e o valor é um dicionário com:
+                - 'fields': lista de campos esperados na seção. Se Vazio, irá
+                            extrair os campos no padrão 'campo: valor'.
+                - 'subsections': lista de rótulos de subseções (se houver). Se
+                                 vazio, irá extrair subseções no padrão
+                                 'subseção:'.
+                - 'subsections_coordinate_x0': posição horizontal de referência
+                  da subseção. Se None, a subseção será extraída se estiver no
+                  padrão 'subseção:'.
         """
         pass
 
     @abstractmethod
-    def get_fields(self) -> Dict[str, Any]:
+    def get_fields(self) -> Dict[Optional[str], List[str]]:
+        """
+        Retorna um dicionário contendo os rótulos (labels) que devem ser
+        procurados *diretamente nas linhas* de cada seção do laudo para extração
+        de valores.
+
+        A identificação desses rótulos durante a extração é desafiadora devido
+        à ausência de padrões de formatação consistentes. Isso se manifesta de
+        diversas formas: campos sem delimitadores claros, como 'Telefone' (que
+        não termina com ':'), rótulos fora de seções nomeadas ('Emissão:',
+        'Hora:', etc.) e campos compostos por múltiplas palavras que sucedem
+        outros campos na mesma linha, como 'Data da liberação do resultado'.
+        Por exemplo, em uma linha como "Conselho: CRM-999 CNS: 999999999999999
+        Data da liberação do resultado: 24/01/2023", o sistema não consegue
+        discernir que 'Data da liberação do resultado' constitui um campo único.
+
+        As chaves do dicionário representam os nomes das seções (ou None para
+        cabeçalho geral fora de seções nominais) e os valores são listas de
+        rótulos associados.
+
+        Returns:
+            Dict[Optional[str], List[str]]: Mapeamento entre seções e os rótulos
+            esperados para extração direta de valores estruturados.
+        """
         pass
 
     @abstractmethod
     def get_ignore_lines(self) -> List[str]:
         """
-        Método abstrato para retornar uma lista de linhas que devem ser ignoradas durante a extração.
+        Método abstrato para retornar uma lista de linhas que devem ser
+        ignoradas durante a extração.
 
         Returns:
             List[str]: Lista de strings contendo as linhas a serem ignoradas.
@@ -108,24 +129,26 @@ class SiscanReportExtractor(ABC):
         logger.info(f"Salvando resultados em {filepath}...")
         self.df.to_excel(filepath, index=False)
 
-    def _save_to_text(self, text_extra: str) -> None:
+    def _save_to_text(self, text_extra: str, lines: List[str]) -> None:
         """
         Salva os dados extraídos em um arquivo texto.
 
         Args:
             text_extra (str): Texto extra a ser adicionado ao início do arquivo.
+            lines (List[str]): Lista de strings contendo as linhas a serem
+                               salvas.
 
         Raises:
             FileNotFoundError: Se o arquivo de texto não for encontrado.
             IOError: Se houver erro ao salvar o arquivo texto.
         """
-        if not self.lines:
+        if not lines:
             raise EmptyDocumentError("Nenhum dado extraído para salvar.")
 
         logger.info(
-            f"Salvando resultados em {self._filepath_destination_text}...")
-        FileOperator.salve_text_file(self._filepath_destination_text,
-                                     self.lines, text_extra)
+            f"Salvando resultados em {self._text_output}...")
+        FileOperator.salve_text_file(self._text_output,
+                                     lines, text_extra)
 
     def _extract_value(self, label: str, texto: str) -> Optional[str]:
         """
@@ -162,268 +185,358 @@ class SiscanReportExtractor(ABC):
             return valor
         return None
 
-    def _extract_lines_from_page(self, 
-                                 page: pdfplumber.page.Page, 
-                                 y_tolerance: int = 3) -> List[str]:
+    def _extract_lines_from_page(
+            self, page: fitz.Page,
+            y_tolerance: int = 3) -> List[Tuple[str, float]]:
         """
-            Está função em como objetivo reconstruir o texto de uma página do 
-            PDF agrupando as palavras que estão próximas verticalmente, de 
-            forma a recriar as linhas conforme o layout original.
+        Reconstrói o texto de uma página do PDF utilizando PyMuPDF (fitz),
+        agrupando palavras próximas verticalmente para formar linhas completas.
 
-            Extrai todas as palavras da página usando page.extract_words(). 
-            Cada palavra vem com metadados:
-                - text: O conteúdo textual extraído da palavra.
-                - x0: A coordenada x da borda esquerda da caixa delimitadora da 
-                      palavra.
-                - x1: A coordenada x da borda direita da caixa delimitadora da 
-                      palavra.
-                - top: A coordenada y do topo da caixa delimitadora da palavra, 
-                       normalmente medida a partir do topo da página.
-                - doctop: Semelhante a top, mas pode representar a posição 
-                          vertical relativa ao documento inteiro (útil em casos 
-                          com múltiplas páginas, por exemplo).
-                - bottom: A coordenada y da borda inferior da caixa delimitadora
-                           da palavra.
-                - upright: Um valor booleano que indica se o texto está “na 
-                           vertical” (upright = True) – isto é, não está 
-                           rotacionado.
-                - height: A altura da caixa que envolve a palavra (geralmente, 
-                          bottom - top).
-                - width: A largura da caixa que envolve a palavra (geralmente, 
-                         x1 - x0).
-                - direction: A direção do texto. Por exemplo, "ltr" significa 
-                            left-to-right (da esquerda para a direita). Isso 
-                            pode ser útil para documentos que contenham texto 
-                            em direções diferentes.
-                ex.:
-                    {
-                        'text': 'Emissão:', 'x0': 455.0, 'x1': 487.896, 
-                        'top': 22.0859999999999, 'doctop': 22.0859999999999, 
-                        'bottom': 30.0859999999999, 'upright': True, 
-                        'height': 8.0, 'width': 32.896000000000015, 
-                        'direction': 'ltr'
-                    }
-            Args:
-                page (pdfplumber.page.Page): Página do PDF a ser processada.
-                y_tolerance (int, optional): Tolerância de proximidade vertical 
-                                             para agrupar palavras em uma mesma 
-                                             linha. Padrão é 3.
+        Essa função é útil para reorganizar visualmente o texto da página,
+        respeitando a estrutura de linhas, baseada na posição vertical (y) das
+        palavras.
 
-            Returns:
-                List[str]: Lista de strings, onde cada string representa uma 
-                           linha de texto reconstruída do PDF.
+        Args:
+            page (fitz.Page): Página do PDF a ser processada (PyMuPDF).
+            y_tolerance (int): Tolerância vertical para agrupar palavras na
+                               mesma linha.
+
+        Returns:
+            List[str]: Lista de strings representando as linhas reconstruídas
+                       do PDF.
         """
+        words_raw = page.get_text(
+            "words")  # [(x0, y0, x1, y1, text, block, line, word), ...]
 
-        # extrai todas as palavras da página.
-        words = page.extract_words()
-        if not words:
+        if not words_raw:
             raise EmptyDocumentError("Nenhuma palavra extraída da página.")
 
-        # Ordena as palavras pela posição vertical (top) para que palavras na 
-        # mesma altura fiquem juntas) e, depois
-        # pela posição horizontal (x0) para preservar a ordem da esquerda para 
-        # a direita).
-        words = sorted(words, key=lambda w: (w['top'], w['x0']))
+        # Converte para dicionários com campos nomeados, para compatibilidade
+        # com a estrutura original
+        words = [
+            {
+                "x0": w[0],
+                "y0": w[1],
+                "x1": w[2],
+                "y1": w[3],
+                "text": w[4],
+            }
+            for w in words_raw
+        ]
 
-        lines = []  # armazenar o resultado final, ou seja, as linhas de texto
-        current_line = []  # armazenar as palavras que pertencem à linha que 
-                           # está sendo construída
-        current_y = None  # guarda a posição vertical de referência para a 
-                          # linha atual
+        # Ordena por posição vertical (y0) e horizontal (x0)
+        words = sorted(words, key=lambda w: (w['y0'], w['x0']))
+
+        lines = []
+        current_line = []
+        current_y = None
 
         for word in words:
-            if current_y is None: # se None, significa que é a primeira palavra
-                current_y = word['top']
-                current_line.append(word) # a palavra é adicionada.
+            if current_y is None:
+                current_y = word['y0']
+                current_line.append(word)
             else:
-                # Palavras subsequentes:
-                # Se a palavra estiver próxima da linha atual, adiciona à mesma 
-                # linha
-                # verifica-se se a diferença entre a posição vertical da nova 
-                # palavra e 'current_y' é menor ou igual a 'y_tolerance' 
-                # (tolerância vertical).
-                if abs(word['top'] - current_y) <= y_tolerance:
+                if abs(word['y0'] - current_y) <= y_tolerance:
                     current_line.append(word)
                 else:
-                    # diferença é maior, isso indica que a nova palavra está em 
-                    # uma linha diferente. Nesse caso, as palavras acumuladas 
-                    # em 'current_line' são ordenadas pela posição horizontal (
-                    # para manter a ordem da esquerda para a direita) e 
-                    # concatenadas em uma única string, que representa a linha 
-                    # completa.
                     line_text = " ".join(
-                        [w['text'] for w in sorted(current_line, 
+                        [w['text'] for w in sorted(current_line,
                                                    key=lambda w: w['x0'])]
-                    )
-                    lines.append(line_text)
+                        )
+                    lines.append((line_text, current_line[0]['x0'],
+                                  current_line[0]['y0']))
 
                     logger.debug(f"Nova linha: {line_text}")
                     for w in sorted(current_line, key=lambda w: w['x0']):
-                        logger.debug(f"  - {w['text']} ({w['x0']}, {w['top']})")
+                        logger.debug(f"  - {w['text']} ({w['x0']}, {w['y0']})")
 
-                    # Reinicia para uma nova linha
-                    current_line = [word]  # reinicia com a palavra atual
-                    current_y = word['top']  # atualiza para a posição vertical 
-                                             # da palavra atual
+                    current_line = [word]
+                    current_y = word['y0']
 
         if current_line:
-            # existe palara acumulada, ou seja, a última linha da página. Essa 
-            # linha é finalizada da mesma forma, isto é, ordenando as palavras 
-            # e juntando-as em uma string e adicionada à lista lines.
-            line_text = " ".join(
-                [w['text'] for w in sorted(current_line, key=lambda w: w['x0'])]
-            )
-            lines.append(line_text)
+            line_text = " ".join([w['text'] for w in
+                                  sorted(current_line, key=lambda w: w['x0'])])
+            lines.append((line_text, current_line[0]['x0'],
+                          current_line[0]['y0']))
 
-        self._lines = lines
         return lines
+
+    def _extract_labeled_field(self,
+                               fields_dict: Dict[Optional[str], List[str]],
+                               section_name: str,
+                               section_name_key: str,
+                               clean_line: str,
+                               extracted_lines: Set[str],
+                               data: Dict[str, str]) -> str:
+        """
+        Tenta extrair um valor associado a um rótulo (label) conhecido dentro
+        de uma linha de texto, considerando a seção atual do laudo.
+
+        A função verifica se há rótulos definidos para a seção (`section_name`)
+        no dicionário `fields_dict`. Para cada rótulo presente, tenta extrair
+        o valor correspondente utilizando a função `TextUtils.get_text_after_word`.
+
+        Em caso de sucesso:
+          - A linha original (`line`) é adicionada à lista `extracted_lines`.
+          - O valor extraído é registrado no dicionário `data`, com a chave
+            composta por `section_name_key` e o nome do campo normalizado.
+          - O valor e o rótulo são removidos da `clean_line` para evitar duplicações.
+          - O campo (rótulo) é removido de `fields_dict[section_name]`.
+          - A iteração é interrompida ao encontrar a primeira correspondência.
+
+        Args:
+            fields_dict (Dict[Optional[str], List[str]]): Dicionário com os rótulos
+                esperados por seção.
+            section_name (str): Nome da seção atual em processamento.
+            section_name_key (str): Prefixo normalizado do nome da seção, usado como
+                parte da chave no dicionário `data`.
+            clean_line (str): Linha original extraída do PDF aplicada o strip().
+            extracted_lines (List[str]): Lista das linhas que já foram processadas.
+            data (Dict[str, str]): Dicionário acumulando os dados extraídos.
+
+        Returns:
+            str: A linha limpa (`clean_line`), possivelmente com o rótulo e o valor removidos.
+        """
+        if fields_dict.get(section_name):
+            data_extracted = TextUtils.get_text_after_words(
+                clean_line, fields_dict[section_name])
+            logger.debug(f"Data extracted: {data_extracted}")
+            if data_extracted:
+                extracted_lines.add(clean_line)
+                for field, value in data_extracted.items():
+                    if value and ":" in value:
+                        # Se o valor contém ':' (ex.: 'Data da solicitação:
+                        # 05/01/2023 UF: PR Município: CURITIBA'), significa que
+                        # a linha possui mais de um campo. Nesse caso, usa a função
+                        # `extract_key_value_pairs` que extrai todos os campos
+                        data_extracted = TextUtils.extract_key_value_pairs(
+                            clean_line)
+                        # Obtem o primeiro valor do dicionário
+                        new_value = next(iter(data_extracted.values()))
+                        logger.warning(f"Caracter ':' encontrado no valor: "
+                                     f"'{value}'. Novo valor extraído: "
+                                     f"'{new_value}'.")
+                        value = new_value
+
+                    data[f"{section_name_key}{TextUtils.normalize(field)}"] = (
+                        value
+                    )
+                    if value:
+                        clean_line = clean_line.replace(value, "").strip()
+                    # Tenta remover o rótulo concatenado com  ':' se houver.
+                    # Se ocorrer erro, remove o rótulo sem ':'.
+                    try:
+                        fields_dict[section_name].remove(f"{field}:")
+                        clean_line = clean_line.replace(f"{field}:", "").strip()
+                    except ValueError:
+                        fields_dict[section_name].remove(field)
+                        clean_line = clean_line.replace(field, "").strip()
+        return clean_line
 
     def _process_report(
             self, filename_path: str,
             selected_pages: Optional[List[int]] = None
-        ) -> Tuple[Dict[str, List[str]], pd.DataFrame]:
+    ) -> Tuple[Dict[str, List[str]], pd.DataFrame]:
         """
         Processa um laudo de mamografia em formato PDF, extrai informações 
-        estruturadas e identifica linhas não processadas.
+        estruturadas e identifica linhas não processadas, utilizando PyMuPDF.
 
-        O método pode processar todas as páginas do PDF ou apenas páginas 
+        O método pode processar todas as páginas do PDF ou apenas páginas
         específicas, conforme a lista fornecida pelo parâmetro `selected_pages`.
-         Para cada página processada, o método reconstrói o layout textual, 
-        identifica seções, extrai campos estruturados e armazena os dados em um 
+        Para cada página processada, o método reconstrói o layout textual,
+        identifica seções, extrai campos estruturados e armazena os dados em um
         DataFrame.
 
         Args:
-            filename_path (str): Caminho completo do arquivo PDF a ser 
-                                 processado.
-            selected_pages (Optional[List[int]]): Lista de números de páginas a 
-                                                  serem processadas (1-based). 
-                                                  Se None, todas as páginas do 
+            filename_path (str): Caminho completo do arquivo PDF a ser processado.
+            selected_pages (Optional[List[int]]): Lista de números de páginas a
+                                                  serem processadas (1-based).
+                                                  Se None, todas as páginas do
                                                   PDF serão processadas.
 
         Returns:
             Tuple[Dict[str, List[str]], pd.DataFrame]:
-                - Um dicionário onde as chaves representam os números das 
-                  páginas do PDF, e os valores são listas contendo as linhas 
-                  que não puderam ser processadas.
-                - Um DataFrame contendo os dados estruturados extraídos do 
+                - Um dicionário onde as chaves representam os números das
+                  páginas do PDF, e os valores são listas contendo as linhas
+                  que não  puderam ser processadas.
+                - Um DataFrame contendo os dados estruturados extraídos do
                   laudo.
-
-        Side Effects:
-            - Lê e processa o conteúdo do PDF especificado.
-            - Gera logs informativos e de depuração para acompanhamento do 
-              processamento.
-            - Armazena as informações extraídas em um DataFrame pandas.
-
-        Raises:
-            FileNotFoundError: Se o arquivo PDF não for encontrado no caminho 
-                               especificado.
-            IOError: Se houver erro ao abrir ou ler o arquivo PDF.
-            ValueError: Se não for possível processar corretamente o conteúdo 
-                        do PDF.
-
-        Example:
-            ```python
-            processor = ReportProcessor()
-            pending_lines, df = processor._process_report(
-            laudo_mamografia.pdf", selected_pages=[1, 3])
-            print(df.head())
-            ```
         """
-
         sections_all = self.get_sections_all()
         pages_data = []
         pages_pending_lines: Dict[str, List[str]] = {}
-        extracted_lines = []
+        extracted_lines = set()
 
         logger.info(f"Processando PDF {filename_path}...")
 
-        with pdfplumber.open(filename_path) as pdf:
-            total_pages = len(pdf.pages)
+        doc = fitz.open(filename_path)
+        total_pages = len(doc)
 
-            # Ajusta lista de páginas para índices baseados em zero
-            if selected_pages is None:
-                page_indices = range(total_pages)
-            else:
-                # Subtrai 1 para ajustar do padrão humano (1-based) para
-                # índice Python (0-based)
-                page_indices = [p - 1 for p in selected_pages if
-                                1 <= p <= total_pages]
+        if selected_pages is None:
+            page_indices = range(total_pages)
+        else:
+            page_indices = [p - 1 for p in selected_pages if
+                            1 <= p <= total_pages]
 
-            for i in page_indices:
-                page = pdf.pages[i]
-                data = {}
-                page_number = i + 1  # para exibição no log (1-based)
+        for i in page_indices:
+            page = doc[i]
+            data = {}
+            page_number = i + 1  # para exibição no log (1-based)
 
-                logger.info(f"Processando página {page_number}...")
+            logger.info(f"Processando página {page_number}...")
 
-                lines = self._extract_lines_from_page(page, y_tolerance=3)
-                self._save_to_text(filename_path)
+            # Extrai as linhas da página utilizando PyMuPDF
+            lines = self._extract_lines_from_page(page, y_tolerance=3)
+            self._save_to_text(filename_path, [l[0] for l in lines])
 
-                fields_dict = self.get_fields()
-                section = {}
-                section_name = None
-                section_name_key = ""
-                extract_key_value = False
+            fields_dict = self.get_fields()
+            section = {}
+            section_name = None
+            section_name_key = ""
+            subsection_name = None
+            extract_key_value = False
 
-                for line in lines:
-                    logger.debug(f"Lendo Linha: {line}")
-                    clean_line = line.strip()
+            reading_multiple_lines_content = False
 
-                    if clean_line in self.get_ignore_lines():
-                        extracted_lines.append(line)
+            previous_y0 = lines[0][-1]
+            for line, x0, y0 in lines:
+                data_extracted = None
+
+                logger.debug(f"> Lendo Linha [{x0:.2f}, {y0:.2f} diff {(y0-previous_y0):.2f}]: {line}")
+                clean_line = line.strip()
+
+                if clean_line in self.get_ignore_lines():
+                    extracted_lines.add(line)
+                    previous_y0 = y0
+                    continue
+
+                if clean_line in sections_all.keys():
+                    extracted_lines.add(line)
+                    section_name = clean_line
+                    logger.debug(f"*** Seção identificada: {section_name} ***")
+                    section_name_key = f"{TextUtils.normalize(section_name)}__"
+                    previous_y0 = y0
+                    reading_multiple_lines_content = False
+                    continue
+
+                # Extrai campos definidos em 'fields_dict' diretamente da linha,
+                # independentemente da seção atual, no caso None.
+
+                if fields_dict.get(None):
+                    clean_line = self._extract_labeled_field(
+                        fields_dict, None, "geral__",
+                        clean_line, extracted_lines, data)
+                    # Se a linha foi totalmente processada, pula para a próxima
+                    if not clean_line:
+                        previous_y0 = y0
                         continue
 
-                    if clean_line in sections_all:
-                        extracted_lines.append(line)
-                        section_name = clean_line
-                        logger.debug(
-                            f"*** Seção identificada: {section_name} ***")
-                        section_name_key = f"{TextUtils.normalize(section_name)}__"
-                        continue
+                if fields_dict.get(section_name):
+                    # extrai campos definidos em 'fields_dict' diretamente da
+                    # linha da seção atual
+                    clean_line = self._extract_labeled_field(
+                        fields_dict, section_name, section_name_key,
+                        clean_line, extracted_lines, data)
 
-                    if fields_dict.get(section_name):
-                        for field in fields_dict[section_name]:
-                            value = TextUtils.get_text_after_word(clean_line,
-                                                                  field)
-                            if value:
-                                extracted_lines.append(line)
-                                data[f"{section_name_key}{TextUtils.normalize(field)}"] = value
-                                clean_line = clean_line.replace(value,
-                                                                "").strip()
-                                clean_line = clean_line.replace(field,
-                                                                "").strip()
-                                fields_dict[section_name].remove(field)
-                                break
+                if section_name:
+                    is_subsection = False
+                    subsections_coordinate_x0 = sections_all.get(
+                        section_name).get('subsections_coordinate_x0')
+                    if (subsections_coordinate_x0
+                            and subsections_coordinate_x0 == x0):
+                        is_subsection = True
 
-                    if section_name:
+                    # Se foi especificado campos em 'fields' de 'sections_all'
+                    # da seção atual, extrai da linha atual esses campos e
+                    # seus respectivos valores.
+                    sections_fields = sections_all.get(section_name).get(
+                        'fields', [])
+                    if sections_fields:
+                        logger.debug(f"Campos especificados {sections_fields} "
+                                     f"para a seção {section_name}. "
+                                     f"Extraindo-os da linha atual.")
+                        data_extracted = TextUtils.get_text_after_words(
+                            clean_line, sections_fields)
+
+                    # Se o dicionário 'data_extracted' estiver vazio, tenta
+                    # extrair os campos e valores seguindo o padrão
+                    # 'rótulo:valor´.
+                    if not data_extracted and not is_subsection:
                         data_extracted = TextUtils.extract_key_value_pairs(
                             clean_line)
-                        if data_extracted:
-                            extract_key_value = True
-                            extracted_lines.append(line)
-                            for key, value in data_extracted.items():
-                                data[
-                                    f"{section_name_key}{TextUtils.normalize(key)}"] = value
-                            continue
-                        else:
-                            extracted_lines.append(line)
-                            if not extract_key_value:
-                                section_name_key = section_name_key.rstrip("_")
-                                if data.get(section_name_key) is None:
-                                    data[section_name_key] = clean_line
-                                else:
-                                    data[section_name_key] += f"; {clean_line}"
+
+                    # dicionário 'data_extracted' possui os campos e seus
+                    # respectivos valores extraídos da linha atual.
+                    # Se 'reading_multiple_lines_content' for True, significa
+                    # que está lendo valores de um campo com múltiplas linhas.
+                    # Nesse caso, ignora extração do padrão 'rótulo:valor'
+                    if not reading_multiple_lines_content and data_extracted:
+                        logger.debug(f"Data extracted: {data_extracted}")
+                        extract_key_value = True
+                        extracted_lines.add(line)
+                        for key, value in data_extracted.items():
+                            data[
+                                f"{section_name_key}{TextUtils.normalize(key)}"] = value
+                        previous_y0 = y0
+                        continue
+                    else:
+                        if is_subsection:
+                            if (y0 - previous_y0) > 20.0:
+                                # Nova subseção.
+                                reading_multiple_lines_content = False
+
+                                # reinicia 'section_name_key' para o nome da
+                                # subseção.
+                                section_name_key = (
+                                    f"{TextUtils.normalize(section_name)}__"
+                                    f"{TextUtils.normalize(subsection_name)}__"
+                                )
                             else:
-                                section_name_key = f"{TextUtils.normalize(section_name)}__{TextUtils.normalize(clean_line)}__"
-                                extract_key_value = False
+                                subsection_name = clean_line
+                                # reinicia 'section_name_key' para o nome da
+                                # seção
+                                section_name_key = f"{TextUtils.normalize(section_name)}__"
 
-                pending_lines = set(lines) - set(extracted_lines)
-                if pending_lines:
-                    pages_pending_lines[page_number] = list(pending_lines)
-                    logger.warning(f"Linhas não processadas (página "
-                                   f"{page_number}): {pending_lines}")
+                            # removendo o caracter ":" de 'clean_line'
+                            clean_line = clean_line.replace(":", "")
 
-                pages_data.append(data)
+                        extracted_lines.add(line)
+                        if not extract_key_value and not is_subsection:
+                            section_name_key = section_name_key.rstrip("_")
+                            logger.debug(f"Extraindo valor para {section_name_key}")
+                            if data.get(section_name_key) is None:
+                                data[section_name_key] = clean_line
+                            else:
+                                reading_multiple_lines_content = True
+                                data[section_name_key] += f"; {clean_line}"
+                        else:
+                            section_name_key = (
+                                f"{section_name_key}"
+                                f"{TextUtils.normalize(clean_line)}__"
+                            )
+                            logger.debug(f"Subseção '{clean_line}' identificada"
+                                         f", ID {section_name_key}.")
+                            extract_key_value = False
+                previous_y0 = y0
+
+            pending_lines = set([l[0] for l in lines]) - extracted_lines
+            if pending_lines:
+                pages_pending_lines[page_number] = list(pending_lines)
+                logger.warning(
+                    f"Linhas não processadas (página {page_number}): "
+                    f"{pending_lines}")
+
+            pages_data.append(data)
+
+        doc.close()
+
+        # Salva o JSON com os dados extraídos, campos e valores
+        base_name = os.path.splitext(os.path.basename(filename_path))[0]
+        output_path = os.path.join(self._result_output_directory,
+                                   f"{base_name}.json")
+        logger.debug(f"Salvando json em {output_path}")
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(pages_data, f, indent=4, ensure_ascii=False)
 
         return pages_pending_lines, pd.DataFrame(pages_data)
 
@@ -469,8 +582,8 @@ class SiscanReportExtractor(ABC):
 
         # Renomeia temporariamente o arquivo de texto antes do processamento
         FileOperator.rename_file(
-            self._filepath_destination_text,
-            f"{self._filepath_destination_text}_tmp"
+            self._text_output,
+            f"{self._text_output}_tmp"
         )
 
         all_df = pd.DataFrame()
@@ -480,6 +593,10 @@ class SiscanReportExtractor(ABC):
         for filename in os.listdir(self._input_directory_path_report):
             filename_path = os.path.join(self._input_directory_path_report,
                                          filename)
+
+            if not PdfUtils.is_pdf_file(filename_path):
+                logger.warning(f"Arquivo ignorado: {filename_path}")
+                continue
 
             output_directory = os.path.join(self._result_output_directory,
                                             "pages")
@@ -505,22 +622,26 @@ class SiscanReportExtractor(ABC):
         # DataFrame consolidado
 
         logger.info(
-            f"Textos extraídos salvo em {self._filepath_destination_text}")
+            f"Textos extraídos salvo em {self._text_output}")
 
         # Remove o arquivo temporário criado no início
-        FileOperator.remove_file(f"{self._filepath_destination_text}_tmp")
+        FileOperator.remove_file(f"{self._text_output}_tmp")
 
         # Retorna o dicionário de linhas pendentes e o DataFrame consolidado
         return all_pages_pending_lines, self._df
 
     @classmethod
-    def gerar_amostra_com_coordenadas(cls, pdf_path: str, output_directory: Optional[str] = None) -> None:
+    def generate_visual_layout_sample(
+            cls, pdf_path: str, output_directory: Optional[str] = None) -> None:
         """
-        Gera uma amostra do PDF anotando a primeira página com as marcas 'wo' e 'top',
-        e salva também as coordenadas das palavras em um arquivo JSON.
+        Lê a primeira página de um PDF, extrai as coordenadas de cada palavra
+        e salva essas informações em um JSON. Além disso, insere anotações
+        visuais no PDF com os valores de x0 e y0 para auxiliar o desenvolvedor
+        a localizar visualmente as palavras na página.
 
         Esse método é útil para que o desenvolvedor possa visualizar a estrutura
-        do layout da primeira página e identificar visualmente as coordenadas das seções.
+        do layout da primeira página e identificar visualmente as coordenadas
+        das seções.
 
         Args:
             pdf_path (str): Caminho completo para o PDF de entrada.
@@ -529,8 +650,9 @@ class SiscanReportExtractor(ABC):
                 salvos no mesmo diretório do PDF original.
 
         Side Effects:
-            - Cria arquivos "<nome_arquivo>_anotado.pdf" e "<nome_arquivo>_coordenadas.json"
-              no diretório de saída especificado.
+            - Cria arquivos "<nome_arquivo>_anotado.pdf" e
+              "<nome_arquivo>_coordenadas.json" no diretório de saída
+              especificado.
 
         Raises:
             FileNotFoundError: Se o arquivo PDF não for encontrado.
@@ -542,12 +664,13 @@ class SiscanReportExtractor(ABC):
         base_name = os.path.splitext(os.path.basename(pdf_path))[0]
 
         if output_directory is None:
-            output_directory = os.path.dirname(pdf_path)
+            output_directory = os.path.join(os.path.dirname(pdf_path), "output")
 
         os.makedirs(output_directory, exist_ok=True)
 
         output_pdf = os.path.join(output_directory, f"{base_name}_anotado.pdf")
-        output_json = os.path.join(output_directory, f"{base_name}_coordenadas.json")
+        output_json = os.path.join(output_directory,
+                                   f"{base_name}_coordenadas.json")
 
         PdfUtils.extract_and_annotate_first_page(
             input_pdf=pdf_path,

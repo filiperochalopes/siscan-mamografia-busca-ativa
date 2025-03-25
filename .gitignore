@@ -1,4 +1,6 @@
 resultado_laudos.*
+src/extrator_laudo/tests/laudos/output/
+src/extrator_laudo/tests/resultado/
 
 
 # Ignora configurações e arquivos de ambiente de desenvolvimento

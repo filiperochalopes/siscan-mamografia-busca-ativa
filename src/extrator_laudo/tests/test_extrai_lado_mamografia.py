@@ -28,7 +28,7 @@ class TestExtrator(unittest.TestCase):
     def setUpClass(cls):
         logging.basicConfig(
             level=logging.DEBUG,
-            format='%(asctime)s - %(levelname)s - %(name)s - %(funcName)s - %(message)s',
+            format='%(asctime)s | %(levelname)-8s | %(name)-25s | %(funcName)-25s | %(message)s',
             handlers=[logging.StreamHandler()]
         )
 
@@ -57,7 +57,7 @@ class TestExtrator(unittest.TestCase):
         extrator = SiscanReportMammographyExtract(diretorio_dos_pdf,
                                                   diretorio_dos_resultados)
         all_pages_pending_lines, df = extrator.process(
-            selected_pages=[84, 96, 129, 221])
+            selected_pages=[129]) # [1, 84, 96, 129, 221]
 
         caminho_excel = os.path.join(diretorio_dos_resultados,
                                      'resultado_laudos.xlsx')
@@ -66,17 +66,14 @@ class TestExtrator(unittest.TestCase):
         fim = time.time()
         print(f"Tempo de execução: {fim - inicio:.4f} segundos")
 
-        print(json.dumps(all_pages_pending_lines, indent=4, ensure_ascii=False))
+        # print(json.dumps(all_pages_pending_lines, indent=4, ensure_ascii=False))
 
         df.head()
 
     def test_extrair_metadados(self):
         base_dir = Path(__file__).resolve().parent
-        path_laudo = os.path.join(base_dir, "laudos", "detalheRelatorioLaudos (42).pdf")
+        path_laudo = os.path.join(base_dir,
+                                  "laudos",
+                                  "detalheRelatorioLaudos (42).pdf")
 
-        SiscanReportMammographyExtract.gerar_amostra_com_coordenadas(path_laudo)
-
-
-
-
-
+        SiscanReportMammographyExtract.generate_visual_layout_sample(path_laudo)
