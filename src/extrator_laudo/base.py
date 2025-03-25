@@ -112,22 +112,35 @@ class SiscanReportExtractor(ABC):
         """
         pass
 
-    def save_to_excel(self, filepath: str) -> None:
+    def save_to_excel(self, filepath: str,
+                      columns: Optional[List[str]] = None) -> None:
         """
-        Salva os dados extraídos em um arquivo Excel.
+        Salva os dados extraídos em um arquivo Excel. Se uma lista de colunas for especificada,
+        apenas essas colunas serão exportadas. Caso alguma coluna esteja ausente, uma exceção será lançada.
 
         Args:
             filepath (str): Caminho completo do arquivo Excel a ser salvo.
+            columns (Optional[List[str]]): Lista de colunas a serem exportadas. Se None, todas serão salvas.
 
         Raises:
-            FileNotFoundError: Se o arquivo de texto não for encontrado.
+            EmptyDocumentError: Se o DataFrame estiver vazio.
+            ValueError: Se uma ou mais colunas especificadas não existirem no DataFrame.
             IOError: Se houver erro ao salvar o arquivo Excel.
         """
         if self.df.empty:
             raise EmptyDocumentError("Nenhum dado extraído para salvar.")
 
+        df_to_save = self.df
+
+        if columns is not None:
+            missing = [col for col in columns if col not in self.df.columns]
+            if missing:
+                raise ValueError(
+                    f"As seguintes colunas não existem no DataFrame extraído: {missing}")
+            df_to_save = self.df[columns]
+
         logger.info(f"Salvando resultados em {filepath}...")
-        self.df.to_excel(filepath, index=False)
+        df_to_save.to_excel(filepath, index=False)
 
     def _save_to_text(self, text_extra: str, lines: List[str]) -> None:
         """
@@ -481,9 +494,16 @@ class SiscanReportExtractor(ABC):
                         continue
                     else:
                         if is_subsection:
-                            if (y0 - previous_y0) > 20.0:
+                            # if (y0 - previous_y0) > 20.0:
+                            if not ":" in clean_line:
                                 # Nova subseção.
+                                subsection_name = clean_line
                                 reading_multiple_lines_content = False
+
+                                # reinicia 'section_name_key' para o nome da
+                                # seção
+                                section_name_key = f"{TextUtils.normalize(section_name)}__"
+                            else:
 
                                 # reinicia 'section_name_key' para o nome da
                                 # subseção.
@@ -491,11 +511,6 @@ class SiscanReportExtractor(ABC):
                                     f"{TextUtils.normalize(section_name)}__"
                                     f"{TextUtils.normalize(subsection_name)}__"
                                 )
-                            else:
-                                subsection_name = clean_line
-                                # reinicia 'section_name_key' para o nome da
-                                # seção
-                                section_name_key = f"{TextUtils.normalize(section_name)}__"
 
                             # removendo o caracter ":" de 'clean_line'
                             clean_line = clean_line.replace(":", "")
@@ -514,8 +529,10 @@ class SiscanReportExtractor(ABC):
                                 f"{section_name_key}"
                                 f"{TextUtils.normalize(clean_line)}__"
                             )
-                            logger.debug(f"Subseção '{clean_line}' identificada"
-                                         f", ID {section_name_key}.")
+                            logger.debug(f"Subseção '{subsection_name}' "
+                                         f"identificada, ID "
+                                         f"{section_name_key}.")
+                            print(99999999, section_name_key)
                             extract_key_value = False
                 previous_y0 = y0
 
