@@ -28,33 +28,29 @@ def upload():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
+    download_url = None
+
     if request.method == "POST":
-        print("Processando arquivo...", flush=True)
         file = request.files.get("file")
-        print("Arquivo recebido:", file, flush=True)
-        print("Nome do arquivo:", getattr(file, "filename", None), flush=True)
-        print("Tamanho (stream):", file.stream.tell() if file else "sem stream", flush=True)
-        if file:
-            temp_dir = Path("tmp")
-            temp_dir.mkdir(exist_ok=True)
-            pdf_path = temp_dir / file.filename
-            file.save(pdf_path)
-            print("Arquivo salvo em:", pdf_path, flush=True)
-
-            extrator = SiscanReportMammographyExtract(str(temp_dir), str(temp_dir))
-            _, df = extrator.process()
-
-            # Gera timestamp no formato yyyymmddhhmm
+        if file and file.filename != "":
             timestamp = datetime.now().strftime("%Y%m%d%H%M")
             nome_arquivo = f"resultado_processamento_laudos_siscan_{timestamp}.xlsx"
-            caminho_excel = f"/app/src/static/exports/{nome_arquivo}"
+            export_dir = Path("src/static/exports")
+            export_dir.mkdir(parents=True, exist_ok=True)
 
+            # Salva arquivo e processa
+            temp_pdf = Path("tmp/input.pdf")
+            Path("tmp").mkdir(exist_ok=True)
+            file.save(temp_pdf)
+
+            extrator = SiscanReportMammographyExtract("tmp", "tmp")
+            _, df = extrator.process()
+            caminho_excel = export_dir / nome_arquivo
             extrator.save_to_excel(caminho_excel, sorted(extrator.df.columns))
-            print("Arquivo Excel gerado com sucesso!", flush=True)
 
-            return send_file(caminho_excel, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name=nome_arquivo)
+            download_url = url_for('static', filename=f'exports/{nome_arquivo}')
 
-    return render_template("upload.html.j2")
+    return render_template("upload.html.j2", download_url=download_url or "")
 
 @app.route("/download")
 def download():

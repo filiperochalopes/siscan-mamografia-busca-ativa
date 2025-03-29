@@ -3,74 +3,120 @@
 {% block title %}Página de Upload{% endblock %}
 
 {% block body %}
-<div x-data="{
-    loading: false,
-    file: null,
-    fileInfo: '',
-    handleFile(event) {
-      const file = event?.dataTransfer?.files?.[0] || event?.target?.files?.[0];
-      if (!file) return;
+<div x-data="uploadPage()" x-init="init()">
 
-      // Atualiza o input real para que o arquivo seja enviado corretamente
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(file);
-      this.$refs.fileInput.files = dataTransfer.files;
+  <!-- Overlay -->
+  <div id="overlay" x-show="loading"
+    class="fixed inset-0 bg-black bg-opacity-50 text-white text-2xl flex items-center justify-center z-50">
+    Processando...
+  </div>
 
-      // Atualiza dados no front
-      this.file = file;
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      this.fileInfo = `${file.name} - ${sizeMB} MB`;
-
-      if (file.type === 'application/pdf') {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const typedarray = new Uint8Array(reader.result);
-          pdfjsLib.getDocument({ data: typedarray }).promise.then(pdf => {
-            this.fileInfo += ` - ${pdf.numPages} página(s)`;
-          });
-        };
-        reader.readAsArrayBuffer(file);
-      }
-    }
-  }">
-
-  <!-- Overlay de carregamento -->
-  <div id="overlay" x-show="loading" class="flex">Carregando...</div>
-
-  <!-- Cabeçalho -->
-  <header class="p-4 bg-blue-500 text-white">
-    <h1 class="text-center text-2xl">Upload de Arquivo</h1>
+  <header class="p-4 bg-blue-500 text-white text-center text-2xl">
+    Upload de Arquivo
   </header>
 
-  <!-- Área principal -->
   <main class="p-4">
-    <form id="uploadForm" method="POST" enctype="multipart/form-data" action="{{ url_for('upload') }}"
-      @submit="loading = true">
-      <!-- Área de drag'n drop -->
-      <div x-on:click="$refs.fileInput.click()" x-on:dragover.prevent="$el.classList.add('bg-gray-200')"
-        x-on:dragleave.prevent="$el.classList.remove('bg-gray-200')"
-        x-on:drop.prevent="$el.classList.remove('bg-gray-200'); handleFile($event)" x-ref="fileInput"
-        @change="handleFile($event)"
-        class="border-dashed border-4 border-gray-400 flex justify-center items-center my-4 h-[40vh] relative"
-        id="uploadArea">
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload') }}" @submit="loading = true">
+
+      <!-- Área de upload -->
+      <div id="dropzone" @click="$refs.fileInput.click()" @dragover.prevent="$el.classList.add('bg-gray-200')"
+        @dragleave.prevent="$el.classList.remove('bg-gray-200')" @drop.prevent="handleDrop($event)"
+        class="border-4 border-dashed border-gray-400 flex items-center justify-center h-40vh my-4 cursor-pointer transition">
         <input type="file" name="file" x-ref="fileInput" class="hidden" @change="handleFile($event)">
         <div class="text-center">
-          <template x-if="!file">
-            <span>Arraste e solte ou clique para selecionar um arquivo</span>
+          <template x-if="!fileInfo">
+            <span>Arraste ou clique para selecionar um arquivo</span>
           </template>
-          <template x-if="file">
+          <template x-if="fileInfo">
             <span x-text="fileInfo"></span>
           </template>
         </div>
       </div>
 
-      <!-- Botões -->
-      <div>
-        <button type="submit" class="bg-blue-500 text-white p-2" :disabled="!file">
-          Enviar
-        </button>
+      <div class="text-center">
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded" :disabled="!fileInfo">Enviar</button>
       </div>
     </form>
+
+    <!-- Mensagem após envio -->
+    <div x-cloak x-show="downloadUrl && !loading" class="mt-6 text-center text-green-700">
+      <p>
+        O download deve iniciar automaticamente.<br>
+        Se não acontecer,
+        <a :href="downloadUrl" class="underline font-semibold">clique aqui para baixar o relatório</a>.
+      </p>
+    </div>
   </main>
 </div>
+
+<script>
+  function uploadPage() {
+    return {
+      loading: false,
+      fileInfo: '',
+      downloadUrl: '{{ download_url | default("") }}',
+      init() {
+        if (this.downloadUrl) {
+          setTimeout(() => {
+            window.location.href = this.downloadUrl;
+          }, 1000);
+        }
+      },
+      handleFile(event) {
+        const file = event?.dataTransfer?.files?.[0] || event?.target?.files?.[0];
+        if (!file) return;
+
+        // Garante que o input seja atualizado corretamente
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        this.$refs.fileInput.files = dataTransfer.files;
+
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        this.file = file;
+        this.fileInfo = `${file.name} - ${sizeMB} MB`;
+
+        if (file.type === 'application/pdf') {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const typedarray = new Uint8Array(reader.result);
+            pdfjsLib.getDocument({ data: typedarray }).promise.then(pdf => {
+              this.fileInfo += ` - ${pdf.numPages} página(s)`;
+            }).catch(err => {
+              console.error("Erro ao ler PDF:", err);
+            });
+          };
+          reader.readAsArrayBuffer(file);
+        }
+        this.downloadUrl = '';
+      },
+      handleDrop(event) {
+        const file = event.dataTransfer.files[0];
+        if (!file) return;
+
+        // Prepara o input para envio
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        this.$refs.fileInput.files = dataTransfer.files;
+
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        this.file = file;
+        this.fileInfo = `${file.name} - ${sizeMB} MB`;
+        this.downloadUrl = '';
+
+        if (file.type === 'application/pdf') {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const typedarray = new Uint8Array(reader.result);
+            pdfjsLib.getDocument({ data: typedarray }).promise.then(pdf => {
+              this.fileInfo += ` - ${pdf.numPages} página(s)`;
+            }).catch(err => {
+              console.error("Erro ao ler PDF:", err);
+            });
+          };
+          reader.readAsArrayBuffer(file);
+        }
+      }
+    }
+  }
+</script>
 {% endblock %}

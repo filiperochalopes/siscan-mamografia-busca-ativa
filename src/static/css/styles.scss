@@ -28,7 +28,6 @@ header{
   background: rgba(0, 0, 0, 0.5);
   color: white;
   font-size: 2rem;
-  display: none;
   justify-content: center;
   align-items: center;
   z-index: 1000;
@@ -41,6 +40,10 @@ header{
 }
 
 /* Área de upload com 40% da altura da viewport */
-#uploadArea {
+#dropzone {
   height: 40vh;
+}
+
+[x-cloak] {
+  display: none !important;
 }
