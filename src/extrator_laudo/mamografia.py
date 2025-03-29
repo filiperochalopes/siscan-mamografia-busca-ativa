@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from src.extrator_laudo.base import SiscanReportExtractor
+from extrator_laudo.base import SiscanReportExtractor
 
 logger = logging.getLogger(__name__)
 

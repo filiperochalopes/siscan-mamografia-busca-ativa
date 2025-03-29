@@ -8,11 +8,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia todo o código da aplicação
-COPY /src .
+# Copia toda a aplicação (incluindo a pasta src/)
+COPY . .
+
+# Adiciona src ao PYTHONPATH
+ENV PYTHONPATH=/app
 
 # Expõe a porta 5000
 EXPOSE 5000
 
 # Inicia a aplicação
-CMD ["python", "app.py"]
+CMD ["python", "run.py"]

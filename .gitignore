@@ -12,3 +12,8 @@ __pycache__/
 .venv
 .env
 
+tmp/**
+!tmp/.keep
+
+src/static/exports/**
+!src/static/exports/.keep

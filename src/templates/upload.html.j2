@@ -2,102 +2,75 @@
 
 {% block title %}Página de Upload{% endblock %}
 
-{% block head %}
-<style>
-  /* Overlay de carregamento */
-  #overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    color: white;
-    font-size: 2rem;
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-  }
-  /* Desabilita interação quando necessário */
-  .disabled {
-    pointer-events: none;
-    opacity: 0.5;
-  }
-  /* Área de upload com 40% da altura da viewport */
-  #uploadArea {
-    height: 40vh;
-  }
-</style>
-{% endblock %}
-
 {% block body %}
-<div id="overlay" class="flex">Carregando...</div>
+<div x-data="{
+    loading: false,
+    file: null,
+    fileInfo: '',
+    handleFile(event) {
+      const file = event?.dataTransfer?.files?.[0] || event?.target?.files?.[0];
+      if (!file) return;
 
-<!-- Cabeçalho -->
-<header class="p-4 bg-blue-500 text-white">
-  <h1 class="text-center text-2xl">Upload de Arquivo</h1>
-</header>
+      // Atualiza o input real para que o arquivo seja enviado corretamente
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      this.$refs.fileInput.files = dataTransfer.files;
 
-<!-- Área principal -->
-<main class="p-4">
-  <form id="uploadForm" method="POST" enctype="multipart/form-data">
-    <div id="uploadArea" class="border-dashed border-4 border-gray-400 flex justify-center items-center my-4">
-      <input type="file" name="file" id="fileInput" class="hidden" {% if processing_done %}disabled{% endif %}>
-      <label for="fileInput" class="cursor-pointer">Arraste e solte ou clique para selecionar um arquivo</label>
-    </div>
-    {% if processing_done %}
-      <!-- Botão de download após o processamento -->
-      <button type="button" id="downloadBtn" class="bg-green-500 text-white p-2">Baixar planilha</button>
-      <script>
-        document.getElementById("downloadBtn").addEventListener("click", function() {
-          window.location.href = "{{ url_for('download') }}";
-        });
-      </script>
-    {% else %}
-      <button type="submit" class="bg-blue-500 text-white p-2">Enviar</button>
-    {% endif %}
-  </form>
-  <!-- Campo de log para mensagens -->
-  <div id="log" class="mt-4">
-    {% if processing_done %}
-      <p>Processamento concluído com sucesso! Recarregue a página para enviar um novo arquivo.</p>
-    {% endif %}
-  </div>
-</main>
+      // Atualiza dados no front
+      this.file = file;
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      this.fileInfo = `${file.name} - ${sizeMB} MB`;
 
-<script>
-  // Eventos para drag'n drop na área de upload
-  const fileInput = document.getElementById("fileInput");
-  const uploadArea = document.getElementById("uploadArea");
-  
-  uploadArea.addEventListener("click", () => {
-    fileInput.click();
-  });
-  
-  uploadArea.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    uploadArea.classList.add("bg-gray-200");
-  });
-  
-  uploadArea.addEventListener("dragleave", (e) => {
-    e.preventDefault();
-    uploadArea.classList.remove("bg-gray-200");
-  });
-  
-  uploadArea.addEventListener("drop", (e) => {
-    e.preventDefault();
-    uploadArea.classList.remove("bg-gray-200");
-    if(e.dataTransfer.files.length > 0) {
-      fileInput.files = e.dataTransfer.files;
+      if (file.type === 'application/pdf') {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const typedarray = new Uint8Array(reader.result);
+          pdfjsLib.getDocument({ data: typedarray }).promise.then(pdf => {
+            this.fileInfo += ` - ${pdf.numPages} página(s)`;
+          });
+        };
+        reader.readAsArrayBuffer(file);
+      }
     }
-  });
-  
-  // Exibe overlay "Carregando" ao submeter o formulário
-  const uploadForm = document.getElementById("uploadForm");
-  uploadForm.addEventListener("submit", function() {
-    fileInput.disabled = true;
-    document.getElementById("overlay").style.display = "flex";
-  });
-</script>
+  }">
+
+  <!-- Overlay de carregamento -->
+  <div id="overlay" x-show="loading" class="flex">Carregando...</div>
+
+  <!-- Cabeçalho -->
+  <header class="p-4 bg-blue-500 text-white">
+    <h1 class="text-center text-2xl">Upload de Arquivo</h1>
+  </header>
+
+  <!-- Área principal -->
+  <main class="p-4">
+    <form id="uploadForm" method="POST" enctype="multipart/form-data" action="{{ url_for('upload') }}"
+      @submit="loading = true">
+      <!-- Área de drag'n drop -->
+      <div x-on:click="$refs.fileInput.click()" x-on:dragover.prevent="$el.classList.add('bg-gray-200')"
+        x-on:dragleave.prevent="$el.classList.remove('bg-gray-200')"
+        x-on:drop.prevent="$el.classList.remove('bg-gray-200'); handleFile($event)" x-ref="fileInput"
+        @change="handleFile($event)"
+        class="border-dashed border-4 border-gray-400 flex justify-center items-center my-4 h-[40vh] relative"
+        id="uploadArea">
+        <input type="file" name="file" x-ref="fileInput" class="hidden" @change="handleFile($event)">
+        <div class="text-center">
+          <template x-if="!file">
+            <span>Arraste e solte ou clique para selecionar um arquivo</span>
+          </template>
+          <template x-if="file">
+            <span x-text="fileInfo"></span>
+          </template>
+        </div>
+      </div>
+
+      <!-- Botões -->
+      <div>
+        <button type="submit" class="bg-blue-500 text-white p-2" :disabled="!file">
+          Enviar
+        </button>
+      </div>
+    </form>
+  </main>
+</div>
 {% endblock %}

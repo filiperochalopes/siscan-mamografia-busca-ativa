@@ -2,7 +2,7 @@ services:
   web:
     build: .
     volumes:
-      - ./src:/app
+      - .:/app
     ports:
       - "5000:5000"
     env_file:

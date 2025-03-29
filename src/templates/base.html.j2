@@ -1,13 +1,30 @@
 <!DOCTYPE html>
 <html lang="pt">
+
 <head>
   <meta charset="UTF-8">
   <title>{% block title %}Meu Projeto{% endblock %}</title>
+  <!-- Viewport para responsividade -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Favicon -->
+  <link rel="icon" href="static/img/favicon.ico" type="image/x-icon">
+  <!-- Personalized styles -->
+  <link rel="stylesheet" href="static/css/styles.css">
   <!-- Tailwind via CDN -->
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <!-- Importando AlpineJS e HTMX via CDN -->
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+  <!-- Importando PDF.js via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+  </script>
   {% block head %}{% endblock %}
 </head>
+
 <body class="bg-gray-100">
   {% block body %}{% endblock %}
 </body>
+
 </html>

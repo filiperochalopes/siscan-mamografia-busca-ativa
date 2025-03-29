@@ -2,6 +2,9 @@ from flask import Flask, render_template, request, redirect, url_for, session, s
 from dotenv import load_dotenv
 import os, time
 from io import BytesIO
+from pathlib import Path
+from datetime import datetime
+from src.extrator_laudo.mamografia import SiscanReportMammographyExtract
 
 load_dotenv()
 
@@ -24,17 +27,34 @@ def login():
 def upload():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
-    
-    processing_done = False
-    if request.method == "POST":
-        file = request.files.get("file")
-        if file:
-            # Exibe overlay de carregamento (simulado via JS)
-            # Aqui você pode implementar o processamento real do arquivo
-            time.sleep(2)  # Simula tempo de processamento
-            processing_done = True  # Sinaliza que o processamento foi concluído
 
-    return render_template("upload.html.j2", processing_done=processing_done)
+    if request.method == "POST":
+        print("Processando arquivo...", flush=True)
+        file = request.files.get("file")
+        print("Arquivo recebido:", file, flush=True)
+        print("Nome do arquivo:", getattr(file, "filename", None), flush=True)
+        print("Tamanho (stream):", file.stream.tell() if file else "sem stream", flush=True)
+        if file:
+            temp_dir = Path("tmp")
+            temp_dir.mkdir(exist_ok=True)
+            pdf_path = temp_dir / file.filename
+            file.save(pdf_path)
+            print("Arquivo salvo em:", pdf_path, flush=True)
+
+            extrator = SiscanReportMammographyExtract(str(temp_dir), str(temp_dir))
+            _, df = extrator.process()
+
+            # Gera timestamp no formato yyyymmddhhmm
+            timestamp = datetime.now().strftime("%Y%m%d%H%M")
+            nome_arquivo = f"resultado_processamento_laudos_siscan_{timestamp}.xlsx"
+            caminho_excel = f"/app/src/static/exports/{nome_arquivo}"
+
+            extrator.save_to_excel(caminho_excel, sorted(extrator.df.columns))
+            print("Arquivo Excel gerado com sucesso!", flush=True)
+
+            return send_file(caminho_excel, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name=nome_arquivo)
+
+    return render_template("upload.html.j2")
 
 @app.route("/download")
 def download():
@@ -45,6 +65,3 @@ def download():
     output.write(b"col1,col2,col3\n1,2,3\n4,5,6")
     output.seek(0)
     return send_file(output, mimetype="text/csv", as_attachment=True, attachment_filename="planilha.csv")
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)

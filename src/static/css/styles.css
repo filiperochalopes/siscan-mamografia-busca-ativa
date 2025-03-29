@@ -1,21 +1,15 @@
-// Exemplo de arquivo SCSS
-// Para compilar: utilize um compilador SASS (ex: sass static/scss/style.scss static/css/style.css)
-
-$primary-color: #3490dc;
-
+@charset "UTF-8";
 body {
   font-family: sans-serif;
   background-color: #f7fafc;
 }
 
 h1 {
-  color: $primary-color;
+  color: #3490dc;
 }
 
-header{
-  h1{
-    color: #fff
-  }
+header h1 {
+  color: #fff;
 }
 
 /* Overlay de carregamento */
@@ -43,4 +37,4 @@ header{
 /* Área de upload com 40% da altura da viewport */
 #uploadArea {
   height: 40vh;
-}
+}/*# sourceMappingURL=styles.css.map */
