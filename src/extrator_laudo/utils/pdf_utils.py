@@ -10,9 +10,11 @@ logger = logging.getLogger(__name__)
 
 class PdfUtils:
     @staticmethod
-    def save_pages_as_individual(input_pdf_path: str, output_directory: str,
-                                 selected_pages: Optional[
-                                     List[int]] = None) -> None:
+    def save_pages_as_individual(
+        input_pdf_path: str,
+        output_directory: str,
+        selected_pages: Optional[List[int]] = None,
+    ) -> None:
         """
         Salva cada página (ou páginas selecionadas) de um arquivo PDF como arquivos PDF individuais,
         utilizando a biblioteca PyMuPDF (fitz).
@@ -40,8 +42,7 @@ class PdfUtils:
         if selected_pages is None:
             page_indices = range(total_pages)
         else:
-            page_indices = [p - 1 for p in selected_pages if
-                            1 <= p <= total_pages]
+            page_indices = [p - 1 for p in selected_pages if 1 <= p <= total_pages]
 
         base_name = os.path.splitext(os.path.basename(input_pdf_path))[0]
 
@@ -52,8 +53,9 @@ class PdfUtils:
             new_doc = fitz.open()
             new_doc.insert_pdf(doc, from_page=i, to_page=i)
 
-            output_path = os.path.join(output_directory,
-                                       f"{base_name}_page_{page_number}.pdf")
+            output_path = os.path.join(
+                output_directory, f"{base_name}_page_{page_number}.pdf"
+            )
 
             new_doc.save(output_path)
             new_doc.close()
@@ -63,7 +65,9 @@ class PdfUtils:
         doc.close()
 
     @staticmethod
-    def extract_and_annotate_first_page(input_pdf: str, output_pdf: str, json_output: str):
+    def extract_and_annotate_first_page(
+        input_pdf: str, output_pdf: str, json_output: str
+    ):
         """
         Lê a primeira página de um PDF, extrai as coordenadas de cada palavra
         e salva essas informações em um JSON. Além disso, insere anotações visuais
@@ -97,30 +101,25 @@ class PdfUtils:
             x0, y0, x1, y1, text, *_ = word
 
             # Insere anotação visual no PDF (exibe coordenadas x0 e y0)
-            first_page.insert_text((x0, y1 + 2), f"{x0:.2f}", fontsize=6,
-                                   color=(0, 0, 1))  # azul
+            first_page.insert_text(
+                (x0, y1 + 2), f"{x0:.2f}", fontsize=6, color=(0, 0, 1)
+            )  # azul
 
             if previous_y0 != y0:
-                first_page.insert_text((min_x0 - 20, y1), f"{y0:.2f}",
-                                       fontsize=6,
-                                       color=(1, 0, 0))  # vermelho
+                first_page.insert_text(
+                    (min_x0 - 20, y1), f"{y0:.2f}", fontsize=6, color=(1, 0, 0)
+                )  # vermelho
             previous_y0 = y0
 
             # Salva as coordenadas
-            coordenadas.append({
-                "texto": text,
-                "x0": x0,
-                "y0": y0,
-                "x1": x1,
-                "y1": y1
-            })
+            coordenadas.append({"texto": text, "x0": x0, "y0": y0, "x1": x1, "y1": y1})
 
         # Salva o PDF anotado
         doc.save(output_pdf)
         doc.close()
 
         # Salva o JSON com as coordenadas
-        with open(json_output, 'w', encoding='utf-8') as f:
+        with open(json_output, "w", encoding="utf-8") as f:
             json.dump(coordenadas, f, indent=4, ensure_ascii=False)
 
         logger.info(f"PDF anotado salvo em: {output_pdf}")
@@ -208,9 +207,9 @@ class PdfUtils:
             return False
 
         try:
-            with open(filepath, 'rb') as f:
+            with open(filepath, "rb") as f:
                 header = f.read(5)
-                return header == b'%PDF-'
+                return header == b"%PDF-"
         except Exception:
             return False
 

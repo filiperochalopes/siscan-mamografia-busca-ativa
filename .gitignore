@@ -17,3 +17,5 @@ tmp/**
 
 src/static/exports/**
 !src/static/exports/.keep
+
+src/static/**/*.pdf
