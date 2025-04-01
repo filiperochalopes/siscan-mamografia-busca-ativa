@@ -26,10 +26,10 @@ Conjunto mínimo de dados a ser disponibilizado na planilha final deve ser:
 | `Data do exame`        | Data                   | Data de realização ou execução do exame de mamografia. |
 | `Unidade de saúde`     | Texto                  | Nome da unidade de saúde onde foi realizado o exame. |
 | `CNES`                 | Texto (7 dígitos)      | Código Nacional da unidade de saúde. |
-| `BIRADS MD`            | Número inteiro         | Classificação BIRADS da mama direita. |
-| `BIRADS ME`            | Número inteiro         | Classificação BIRADS da mama esquerda. |
-| `Mama densa MD`        | Booleano (0/1)         | Indica se a mama direita é densa. |
-| `Mama densa ME`        | Booleano (0/1)         | Indica se a mama esquerda é densa. |
+| `MD - BIRADS`          | Número inteiro         | Classificação BIRADS da mama direita. |
+| `MD - Mama densa`      | Booleano (0/1)         | Indica se a mama direita é densa. |
+| `ME - BIRADS`          | Número inteiro         | Classificação BIRADS da mama esquerda. |
+| `ME - Mama densa`      | Booleano (0/1)         | Indica se a mama esquerda é densa. |
 | `Alterado`             | Número inteiro (0,1,2) | Indica necessidade de atenção: 0 = BIRADS 1 e 2; 1 = BIRADS 3, mamas densas ou sugestão de USG; 2 = BIRADS 4 ou 5. Útil para filtragem. |
 | `USG`                  | Booleano (0/1)         | Indica se há sugestão de ultrassonografia por comentários ou características do laudo. |
 | `Link para arquivo`    | URL                    | Link para imagem JPG extraída do PDF, usada para auditoria e visualização do laudo. |
