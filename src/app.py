@@ -15,6 +15,7 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "minha_chave_secreta")  # Utilize uma chave segura em produção
 TOKEN = os.getenv("TOKEN")
+APP_URL = os.getenv("APP_URL")
 
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -196,7 +197,6 @@ def upload():
             # Link para arquivo: usando o número da página presente em "geral__pagina"
             # Atualiza o link para arquivo usando o mapeamento criado.
             # A partir do valor de "geral__pagina", buscamos o novo nome do arquivo e montamos o link absoluto
-            APP_URL = "https://siscan.filipelopes.med.br"  # Substitua pelo domínio real da sua aplicação
             novo_df["Link para arquivo"] = df["geral__pagina"].apply(
                 lambda x: f"{APP_URL}/static/{folder_name}/{mapping_pdf.get(int(x), '')}?token={token}"
                 if pd.notna(x) and int(x) in mapping_pdf else ""
