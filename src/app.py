@@ -255,13 +255,3 @@ def upload():
             download_url = url_for('static', filename=f'exports/{nome_arquivo}')
 
     return render_template("upload.html.j2", download_url=download_url or "")
-
-@app.route("/download")
-def download():
-    if not session.get("logged_in"):
-        return redirect(url_for("login"))
-    # Cria um arquivo CSV dummy para download (substitua pelo seu processamento)
-    output = BytesIO()
-    output.write(b"col1,col2,col3\n1,2,3\n4,5,6")
-    output.seek(0)
-    return send_file(output, mimetype="text/csv", as_attachment=True, attachment_filename="planilha.csv")
