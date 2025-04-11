@@ -48,3 +48,11 @@ Mesmo pacientes com BIRADS 1 ou 2 devem passar por alguma forma de verificação
 Solução técnica para extração de dados: realizar uso de Python com bibliotecas como `PyMuPDF`, `pdfplumber` ou `PyPDF` para extração de dados em formato de texto, reconhecimento de padrões, captura de posição de elementos fixos e uso de reconhecimento de padrões para leitura de partes variáveis. 
 
 Para uma abordagem de MVP, visando reduzir custos de desenvolvimento, será adotado o uso de expressões regulares (RegEx) ou algum modelo simples de NER já treinado, com tolerância a erros de grafia.
+
+### Rodando os testes
+
+Teste e2e com Playwright
+
+```bash
+pytest -v --capture=tee-sys --tb=short tests/e2e.py
+```
