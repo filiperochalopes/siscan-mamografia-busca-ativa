@@ -160,20 +160,22 @@ def test_upload_pdf_e_validar_xlsx(page: Page, tmp_path):
 
 def test_clicar_link_download_arquivo(logged_in_page: Page, tmp_path):
     print("[DEBUG] Aguardando área de upload aparecer...")
-    logged_in_page.wait_for_selector('span', timeout=5000)
+    logged_in_page.wait_for_selector("span", timeout=5000)
 
     print("[DEBUG] Realizando upload do arquivo PDF...")
     upload_input = logged_in_page.query_selector('input[type="file"]')
-    upload_input.set_input_files('tests/files/example.pdf')  # Certifique-se que o arquivo existe
+    upload_input.set_input_files(
+        "tests/files/example.pdf"
+    )  # Certifique-se que o arquivo existe
 
     print("[DEBUG] Clicando no botão Enviar...")
     logged_in_page.click('button[type="submit"]')
 
     print("[DEBUG] Aguardando o link de download aparecer...")
-    logged_in_page.wait_for_selector('a.underline.font-semibold', timeout=10000)
+    logged_in_page.wait_for_selector("a.underline.font-semibold", timeout=10000)
 
     print("[DEBUG] Capturando o link de download...")
-    download_link = logged_in_page.query_selector('a.underline.font-semibold')
+    download_link = logged_in_page.query_selector("a.underline.font-semibold")
     assert download_link.is_visible(), "Link de download não visível."
 
     print("[DEBUG] Clicando no link e aguardando download...")

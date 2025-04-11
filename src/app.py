@@ -1,7 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_file, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from dotenv import load_dotenv
 import os, re, uuid, secrets
-from io import BytesIO
+import shutil
 from pathlib import Path
 from datetime import datetime
 from src.extrator_laudo.mamografia import SiscanReportMammographyExtract
@@ -54,10 +54,36 @@ def upload():
             Path("tmp").mkdir(exist_ok=True)
             file.save(temp_pdf)
 
-            extrator = SiscanReportMammographyExtract("tmp", "tmp")
-            _, df = extrator.process()
+            try:
+                extrator = SiscanReportMammographyExtract("tmp", "tmp")
+                _, df = extrator.process()
+
+                # Aqui, depois de processar, valida:
+                if df.empty or not df["paciente__nome"].any():
+                    error_message = "Erro: O arquivo enviado não é um laudo de mamografia SISCAN válido."
+                    return render_template("upload.html.j2", download_url=download_url or "", error_message=error_message)
+
+            except Exception as e:
+                # Se o processamento falhar completamente
+                error_message = f"Erro ao processar o PDF: {str(e)}"
+                return render_template("upload.html.j2", download_url=download_url or "", error_message=error_message)
             print(df.columns, flush=True)
             print(df.head(), flush=True)
+            
+            def clear_tmp():
+                tmp_dir = Path("tmp")
+                if not tmp_dir.exists():
+                    return  # Nada para limpar
+
+                for item in tmp_dir.iterdir():
+                    if item.name == ".keep":
+                        continue  # Pula o .keep
+                    if item.is_dir():
+                        shutil.rmtree(item)
+                    else:
+                        item.unlink()
+
+                print("[DEBUG] Pasta tmp/ limpa (mantido .keep).", flush=True)
 
             # Extrai o número do BIRADS a partir de uma string como "Categoria 2 - achados mamográficos benignos"
             def extrair_birads(texto):
@@ -258,6 +284,7 @@ def upload():
             # Salva as alterações no arquivo Excel
             wb.save(caminho_excel)
 
+            clear_tmp()
             download_url = url_for('static', filename=f'exports/{nome_arquivo}')
 
     return render_template("upload.html.j2", download_url=download_url or "")
