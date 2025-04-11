@@ -34,10 +34,16 @@ def upload():
         return redirect(url_for("login"))
 
     download_url = None
+    error_message = None  # <-- novo para capturar erros
 
     if request.method == "POST":
         file = request.files.get("file")
         if file and file.filename != "":
+            # Verifica tipo de arquivo (simples: termina com .pdf)
+            if not file.filename.lower().endswith(".pdf"):
+                error_message = "Formato de arquivo inválido! Por favor envie um arquivo PDF."
+                print(f"[DEBUG] Arquivo inválido recebido: {file.filename}", flush=True)
+                return render_template("upload.html.j2", download_url=download_url or "", error_message=error_message)
             timestamp = datetime.now().strftime("%Y%m%d%H%M")
             nome_arquivo = f"resultado_processamento_laudos_siscan_{timestamp}.xlsx"
             export_dir = Path("src/static/exports")

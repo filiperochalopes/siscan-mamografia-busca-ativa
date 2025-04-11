@@ -54,5 +54,6 @@ Para uma abordagem de MVP, visando reduzir custos de desenvolvimento, será adot
 Teste e2e com Playwright
 
 ```bash
-pytest -v --capture=tee-sys --tb=short tests/e2e.py
+docker compose exec -it web bash
+pytest -v --capture=tee-sys --tb=short tests
 ```
