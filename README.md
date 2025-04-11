@@ -8,6 +8,23 @@ Na tentativa de usar dados que já estão disponíveis para aprimorar a busca �
 
 [Live Demo](https://siscan.filipelopes.med.br)
 
+## 🚀 Instalação Rápida (TL;DR)
+
+### Pré-requisitos
+- Docker instalado [(Instruções aqui)](https://docs.docker.com/get-docker/)
+- Docker Compose instalado (já incluso no Docker Desktop)
+
+### Passos
+
+```bash
+# Clone o repositório
+git clone git@github.com:filiperochalopes/siscan-mamografia-busca-ativa.git siscan
+cd siscan
+
+# Suba a aplicação
+docker compose up -d --build
+```
+
 ---
 
 ## Regras de negócio
