@@ -8,6 +8,23 @@ Na tentativa de usar dados que já estão disponíveis para aprimorar a busca �
 
 [Live Demo](https://siscan.filipelopes.med.br)
 
+## 🚀 Instalação Rápida (TL;DR)
+
+### Pré-requisitos
+- Docker instalado [(Instruções aqui)](https://docs.docker.com/get-docker/)
+- Docker Compose instalado (já incluso no Docker Desktop)
+
+### Passos
+
+```bash
+# Clone o repositório
+git clone git@github.com:filiperochalopes/siscan-mamografia-busca-ativa.git siscan
+cd siscan
+
+# Suba a aplicação
+docker compose up -d --build
+```
+
 ---
 
 ## Regras de negócio
@@ -48,3 +65,12 @@ Mesmo pacientes com BIRADS 1 ou 2 devem passar por alguma forma de verificação
 Solução técnica para extração de dados: realizar uso de Python com bibliotecas como `PyMuPDF`, `pdfplumber` ou `PyPDF` para extração de dados em formato de texto, reconhecimento de padrões, captura de posição de elementos fixos e uso de reconhecimento de padrões para leitura de partes variáveis. 
 
 Para uma abordagem de MVP, visando reduzir custos de desenvolvimento, será adotado o uso de expressões regulares (RegEx) ou algum modelo simples de NER já treinado, com tolerância a erros de grafia.
+
+### Rodando os testes
+
+Teste e2e com Playwright
+
+```bash
+docker compose exec -it web bash
+pytest -v --capture=tee-sys --tb=short tests
+```

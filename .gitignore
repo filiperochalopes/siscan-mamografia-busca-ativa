@@ -19,3 +19,6 @@ src/static/exports/**
 !src/static/exports/.keep
 
 src/static/**/*.pdf
+
+tests/files/**
+!tests/files/.keep
