@@ -8,4 +8,8 @@ def is_valid_siscan_df(df):
     """
     Verifica se o DataFrame é válido como laudo SISCAN.
     """
-    return not df.empty and df["paciente__nome"].any()
+    return (
+        not df.empty
+        and "paciente__nome" in df.columns
+        and df["paciente__nome"].any()
+    )

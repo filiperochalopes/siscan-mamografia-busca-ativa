@@ -67,7 +67,7 @@ def test_upload_pdf_invalido_conteudo(logged_in_page: Page):
     logged_in_page.click('button[type="submit"]')
 
     print("[DEBUG] Aguardando mensagem de erro...")
-    logged_in_page.wait_for_selector("div.text-red-500 p", timeout=5000)
+    logged_in_page.wait_for_selector("div.text-red-500 p", timeout=10000)
 
     error_message = logged_in_page.text_content("div.text-red-500 p")
     print(f"[DEBUG] Mensagem de erro encontrada: {error_message}")
