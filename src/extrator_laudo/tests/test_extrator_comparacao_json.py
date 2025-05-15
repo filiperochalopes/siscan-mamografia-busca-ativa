@@ -31,8 +31,9 @@ class TestExtratorComparacaoJSON(unittest.TestCase):
         extrator = SiscanReportMammographyExtract(self.laudos_dir, self.resultado_dir)
 
         _, df_resultado = extrator.process(selected_pages=[1, 84, 96, 129, 221])
-        df_resultado.to_dict(orient="records")
-        # extrator.to_json(df_resultado, os.path.join("tests", "files", "generated.json"))
+
+        print(f"Comparando extração com expected.json: {self.expected_json_path}")
+        print(f"Número de registros extraídos: {len(df_resultado)}")
 
         with open(self.expected_json_path, encoding="utf-8") as f:
             esperado_lista = json.load(f)
