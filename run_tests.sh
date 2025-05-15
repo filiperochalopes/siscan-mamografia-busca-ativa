@@ -144,7 +144,8 @@ docker compose exec web bash -c 'find src/static -maxdepth 1 -type d -regex ".*/
 
 # --service-ports para que as portas expostas no docker-compose.yml também sejam mapeadas no run.
 # --it para que o terminal seja interativo.
-docker compose exec -w $WORK_DIR -it web pytest -v --capture=tee-sys --tb=short
+docker compose exec -w $WORK_DIR -it web pytest -v --tb=short --capture=tee-sys \
+  --html=tests/files/output/evidence/report_$(date +%F).html --self-contained-html
 
 echo "--- Apagando arquivos falsos de teste com faker-file..."
 docker compose exec web bash -c 'rm -f tests/files/tmp*.*'

@@ -88,7 +88,34 @@ tests/files/example.pdf
 
 ---
 
-#### Testes automatizados
+Segue a seção "Testes automatizados" revisada para o `README.md`, incluindo a explicação sobre os arquivos `example.pdf` e `expected.json`:
+
+---
+
+### ✅ Testes automatizados
+
+A execução dos testes é totalmente automatizada. O ambiente será inicializado, os arquivos de entrada gerados e o sistema testado com Playwright e Pytest.
+
+#### Pré-requisitos
+
+Antes de rodar os testes, é necessário disponibilizar **dois arquivos essenciais**:
+
+* `example.pdf` – laudo real de mamografia exportado do SISCAN.
+* `expected.json` – JSON contendo os dados esperados extraídos do laudo.
+
+Ambos os arquivos estão disponíveis nos links abaixo, **mediante solicitação de acesso**:
+
+* [`example.pdf`](https://drive.google.com/file/d/1VYTMBLIbiDTcj6W7mUKeqStlpSW5dZdZ/view?usp=sharing)
+* [`expected.json`](https://drive.google.com/file/d/1JXKsMbAELVGI6SZVz8kdjryUoqN5UH2y/view?usp=sharing)
+
+> Após obter os arquivos, salve-os na pasta `tests/files/`.
+
+```bash
+tests/files/example.pdf
+tests/files/expected.json
+```
+
+#### Execução
 
 Para executar todo o processo (preparação do ambiente, containers, testes e limpeza):
 
@@ -99,8 +126,8 @@ make tests
 Esse comando:
 
 1. Gera automaticamente o arquivo `.env` (caso não exista) com `TOKEN`, `SECRET_KEY` e `APP_URL`.
-2. Cria arquivos de teste fictícios (`example.txt` e `invalid_pdf.pdf`) usando `faker-file`.
+2. Cria arquivos de teste fictícios (`example.txt` e `invalid_pdf.pdf`) usando a biblioteca `faker-file`.
 3. Sobe o container `web` e aguarda até que esteja saudável.
-4. Executa os testes com `pytest` (incluindo testes E2E com `playwright`).
-5. Remove diretórios e arquivos temporários ao final.
+4. Executa os testes com `pytest`, incluindo testes end-to-end com `Playwright`.
+5. Remove diretórios e arquivos temporários ao final do processo.
 
