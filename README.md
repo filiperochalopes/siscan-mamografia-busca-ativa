@@ -1,4 +1,6 @@
-# Sistema de Processamento de Laudos SISCAN
+# RosaAtiva — Sistema de Apoio à Busca Ativa em Mamografia
+
+**RosaAtiva** é uma ferramenta desenvolvida para apoiar a análise automatizada de laudos mamográficos e facilitar a identificação de pacientes que necessitam de acompanhamento no contexto do rastreamento do câncer de mama.
 
 A Busca Ativa é um importante passo no processo da Jornada Digital do Câncer de Mama, pois garante uma maior cobertura da população no rastreio bianual, facilitando o diagnóstico precoce de câncer de mama (pode-se reduzir a mortalidade em até 25%; a sobrevida — mais de 5 anos — para pacientes que descobrem o câncer em estágio inicial 1 é de quase 100%, enquanto para estágios mais tardios — 4 — é de praticamente 30%). Dessa forma, a busca ativa tem como objetivo não apenas ampliar a adesão ao rastreamento de imagem (mamografia), mas também reduzir o tempo entre as etapas e priorizar no sistema, quando necessário, os casos em estágios mais tardios, por meio de alertas. Além disso, busca-se garantir o acompanhamento das pacientes com resultados negativos, mesmo na ausência de uma consulta formal.
 
@@ -7,6 +9,24 @@ Na tentativa de usar dados que já estão disponíveis para aprimorar a busca �
 > **Observação:** Os dados processados não são armazenados pelo serviço. O sistema de token para autenticação serve apenas para evitar grande volume de acessos, e não como medida de segurança.
 
 [Live Demo](https://siscan.filipelopes.med.br)
+
+
+## 🚀 Instalação Rápida (TL;DR)
+
+### Pré-requisitos
+- Docker instalado [(Instruções aqui)](https://docs.docker.com/get-docker/)
+- Docker Compose instalado (já incluso no Docker Desktop)
+
+### Passos
+
+```bash
+# Clone o repositório
+git clone git@github.com:filiperochalopes/siscan-mamografia-busca-ativa.git siscan
+cd siscan
+
+# Suba a aplicação
+docker compose up -d --build
+```
 
 ---
 
@@ -48,3 +68,39 @@ Mesmo pacientes com BIRADS 1 ou 2 devem passar por alguma forma de verificação
 Solução técnica para extração de dados: realizar uso de Python com bibliotecas como `PyMuPDF`, `pdfplumber` ou `PyPDF` para extração de dados em formato de texto, reconhecimento de padrões, captura de posição de elementos fixos e uso de reconhecimento de padrões para leitura de partes variáveis. 
 
 Para uma abordagem de MVP, visando reduzir custos de desenvolvimento, será adotado o uso de expressões regulares (RegEx) ou algum modelo simples de NER já treinado, com tolerância a erros de grafia.
+
+### Rodando os testes
+
+A execução dos testes é totalmente automatizada. O ambiente será inicializado, os arquivos de entrada gerados e o sistema testado com Playwright e Pytest.
+
+#### Pré-requisito
+
+Antes de rodar os testes, é necessário disponibilizar **um laudo real de mamografia exportado do SISCAN**.
+
+* Salve esse arquivo com o nome `example.pdf`
+* Coloque-o na pasta:
+
+```
+tests/files/example.pdf
+```
+
+> **Atenção:** sem esse arquivo real, os testes de extração e leitura do laudo não funcionarão corretamente.
+
+---
+
+#### Testes automatizados
+
+Para executar todo o processo (preparação do ambiente, containers, testes e limpeza):
+
+```bash
+make tests
+```
+
+Esse comando:
+
+1. Gera automaticamente o arquivo `.env` (caso não exista) com `TOKEN`, `SECRET_KEY` e `APP_URL`.
+2. Cria arquivos de teste fictícios (`example.txt` e `invalid_pdf.pdf`) usando `faker-file`.
+3. Sobe o container `web` e aguarda até que esteja saudável.
+4. Executa os testes com `pytest` (incluindo testes E2E com `playwright`).
+5. Remove diretórios e arquivos temporários ao final.
+

@@ -46,6 +46,13 @@
         <a :href="downloadUrl" class="underline font-semibold">clique aqui para baixar o relatório</a>.
       </p>
     </div>
+    
+    <!-- Mensagem de erro -->
+    {% if error_message %}
+    <div class="mt-6 text-center text-red-500">
+      <p>{{ error_message }}</p>
+    </div>
+    {% endif %}
   </main>
 </div>
 

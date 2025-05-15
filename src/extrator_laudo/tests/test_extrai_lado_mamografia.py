@@ -6,6 +6,9 @@ from pathlib import Path
 import pandas as pd
 import unittest
 from src.extrator_laudo.mamografia import SiscanReportMammographyExtract
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,9 @@ pd.set_option("display.expand_frame_repr",
 class TestExtrator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.base_dir = Path(__file__).resolve().parent
+        cls.laudos_dir = Path(os.getenv("TEST_FILES_DIR", cls.base_dir / "laudos"))
+
         logging.basicConfig(
             level=logging.DEBUG,
             format='%(asctime)s | %(levelname)-8s | %(name)-25s | %(funcName)-25s | %(message)s',
@@ -43,18 +49,12 @@ class TestExtrator(unittest.TestCase):
     def test_extrair_laudo(self):
         # planilha siscan https://drive.google.com/drive/u/0/folders/1DrZUj9L0BbETvEslezvfprmuDoe2LBDx
 
-        base_dir = Path(__file__).resolve().parent
-        diretorio_dos_pdf = os.path.join(base_dir, "laudos")
-
-        diretorio_dos_resultados = os.path.join(base_dir, "resultado")
+        diretorio_dos_resultados = os.path.join(self.laudos_dir, "resultado")
         os.makedirs(diretorio_dos_resultados, exist_ok=True)
-
-        # caminho_txt = os.path.join(base_dir, 'resultado',
-        #                            'resultado_laudos.txt')
 
         inicio = time.time()
 
-        extrator = SiscanReportMammographyExtract(diretorio_dos_pdf,
+        extrator = SiscanReportMammographyExtract(self.laudos_dir,
                                                   diretorio_dos_resultados)
         all_pages_pending_lines, df = extrator.process(
             selected_pages=[1, 84, 96, 129, 221]) # [1, 84, 96, 129, 221]
@@ -67,14 +67,16 @@ class TestExtrator(unittest.TestCase):
         fim = time.time()
         print(f"Tempo de execução: {fim - inicio:.4f} segundos")
 
-        # print(json.dumps(all_pages_pending_lines, indent=4, ensure_ascii=False))
-
         df.head()
 
     def test_extrair_metadados(self):
-        base_dir = Path(__file__).resolve().parent
-        path_laudo = os.path.join(base_dir,
-                                  "laudos",
-                                  "detalheRelatorioLaudos (42).pdf")
 
-        SiscanReportMammographyExtract.generate_visual_layout_sample(path_laudo)
+        assert self.laudos_dir.exists(), f"Diretório não encontrado: {self.laudos_dir}"
+        pdfs = list(self.laudos_dir.glob("*.pdf"))
+        assert pdfs, f"Nenhum PDF encontrado em: {self.laudos_dir}"
+
+        for pdf_file in pdfs:
+            pdf_file_name = os.path.join(self.laudos_dir, pdf_file.name)
+            print(f"[INFO] Gerando visual layout para: {pdf_file_name}")
+            SiscanReportMammographyExtract.generate_visual_layout_sample(pdf_file_name)
+

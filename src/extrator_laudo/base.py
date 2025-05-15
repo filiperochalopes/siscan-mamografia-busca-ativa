@@ -532,7 +532,6 @@ class SiscanReportExtractor(ABC):
                             logger.debug(f"Subseção '{subsection_name}' "
                                          f"identificada, ID "
                                          f"{section_name_key}.")
-                            print(99999999, section_name_key)
                             extract_key_value = False
                 previous_y0 = y0
 
