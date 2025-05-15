@@ -1,4 +1,6 @@
-# Sistema de Processamento de Laudos SISCAN
+# RosaAtiva — Sistema de Apoio à Busca Ativa em Mamografia
+
+**RosaAtiva** é uma ferramenta desenvolvida para apoiar a análise automatizada de laudos mamográficos e facilitar a identificação de pacientes que necessitam de acompanhamento no contexto do rastreamento do câncer de mama.
 
 A Busca Ativa é um importante passo no processo da Jornada Digital do Câncer de Mama, pois garante uma maior cobertura da população no rastreio bianual, facilitando o diagnóstico precoce de câncer de mama (pode-se reduzir a mortalidade em até 25%; a sobrevida — mais de 5 anos — para pacientes que descobrem o câncer em estágio inicial 1 é de quase 100%, enquanto para estágios mais tardios — 4 — é de praticamente 30%). Dessa forma, a busca ativa tem como objetivo não apenas ampliar a adesão ao rastreamento de imagem (mamografia), mas também reduzir o tempo entre as etapas e priorizar no sistema, quando necessário, os casos em estágios mais tardios, por meio de alertas. Além disso, busca-se garantir o acompanhamento das pacientes com resultados negativos, mesmo na ausência de uma consulta formal.
 
@@ -7,6 +9,7 @@ Na tentativa de usar dados que já estão disponíveis para aprimorar a busca �
 > **Observação:** Os dados processados não são armazenados pelo serviço. O sistema de token para autenticação serve apenas para evitar grande volume de acessos, e não como medida de segurança.
 
 [Live Demo](https://siscan.filipelopes.med.br)
+
 
 ## 🚀 Instalação Rápida (TL;DR)
 
