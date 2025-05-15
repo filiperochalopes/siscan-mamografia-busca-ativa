@@ -30,7 +30,7 @@ class TestExtrator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.base_dir = Path(__file__).resolve().parent
-        cls.laudos_dir = Path(os.getenv("PDF_LAUDOS_DIR", cls.base_dir / "laudos"))
+        cls.laudos_dir = Path(os.getenv("TEST_FILES_DIR", cls.base_dir / "laudos"))
 
         logging.basicConfig(
             level=logging.DEBUG,

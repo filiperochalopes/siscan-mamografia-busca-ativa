@@ -1,8 +1,9 @@
+import os
 import secrets
 from playwright.sync_api import Page
 import pandas as pd
 from dotenv import load_dotenv
-from .conftest import APP_URL, TOKEN
+from .conftest import APP_URL, TOKEN, TEST_FILES_DIR
 
 load_dotenv()
 def test_login_com_token_correto(page: Page):
@@ -46,7 +47,7 @@ def test_upload_pdf_apos_login(page: Page):
     print("[DEBUG] Realizando upload do arquivo PDF...")
     upload_input = page.query_selector('input[type="file"]')
     upload_input.set_input_files(
-        "tests/files/example.pdf"
+        os.path.join(TEST_FILES_DIR, "example.pdf")
     )  # Caminho relativo ao seu teste
 
     print("[DEBUG] Clicando no botão Enviar...")
@@ -83,7 +84,7 @@ def test_upload_pdf_e_validar_xlsx(page: Page, tmp_path):
 
     print("[DEBUG] Realizando upload do arquivo PDF...")
     upload_input = page.query_selector('input[type="file"]')
-    upload_input.set_input_files("tests/files/example.pdf")
+    upload_input.set_input_files(os.path.join(TEST_FILES_DIR, "example.pdf"))
 
     # Iniciar o monitoramento de download
     print("[DEBUG] Aguardando evento de download...")
@@ -135,7 +136,7 @@ def test_clicar_link_download_arquivo(logged_in_page: Page, tmp_path):
     print("[DEBUG] Realizando upload do arquivo PDF...")
     upload_input = logged_in_page.query_selector('input[type="file"]')
     upload_input.set_input_files(
-        "tests/files/example.pdf"
+        os.path.join(TEST_FILES_DIR, "example.pdf")
     )  # Certifique-se que o arquivo existe
 
     print("[DEBUG] Clicando no botão Enviar...")

@@ -1,6 +1,8 @@
+import os
+
 from playwright.sync_api import Page
 import secrets
-from .conftest import APP_URL
+from .conftest import APP_URL, TEST_FILES_DIR
 
 def test_login_com_token_incorreto(page: Page):
     fake_token = secrets.token_hex(16)
@@ -36,7 +38,7 @@ def test_upload_arquivo_invalido_mostra_erro(logged_in_page: Page):
     print("[DEBUG] Tentando fazer upload de um arquivo inválido (.txt)...")
     upload_input = logged_in_page.query_selector('input[type="file"]')
     upload_input.set_input_files(
-        "tests/files/example.txt"
+        os.path.join(TEST_FILES_DIR, "example.txt")
     )  # Você deve ter esse arquivo
 
     print("[DEBUG] Clicando no botão Enviar...")
@@ -60,7 +62,7 @@ def test_upload_pdf_invalido_conteudo(logged_in_page: Page):
     print("[DEBUG] Tentando fazer upload de um PDF inválido...")
     upload_input = logged_in_page.query_selector('input[type="file"]')
     upload_input.set_input_files(
-        "tests/files/invalid_pdf.pdf"
+        os.path.join(TEST_FILES_DIR, "invalid_pdf.pdf")
     )  # Este é um PDF "não-laudo"
 
     print("[DEBUG] Clicando no botão Enviar...")

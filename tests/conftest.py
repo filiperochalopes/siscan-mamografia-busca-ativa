@@ -7,6 +7,7 @@ load_dotenv()
 
 APP_URL = os.getenv("APP_URL")
 TOKEN = os.getenv("TOKEN")
+TEST_FILES_DIR = os.getenv("TEST_FILES_DIR", "tests/files")
 
 
 @pytest.fixture
