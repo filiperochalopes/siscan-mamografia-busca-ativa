@@ -68,9 +68,36 @@ Para uma abordagem de MVP, visando reduzir custos de desenvolvimento, será adot
 
 ### Rodando os testes
 
-Teste e2e com Playwright
+A execução dos testes é totalmente automatizada. O ambiente será inicializado, os arquivos de entrada gerados e o sistema testado com Playwright e Pytest.
+
+#### Pré-requisito
+
+Antes de rodar os testes, é necessário disponibilizar **um laudo real de mamografia exportado do SISCAN**.
+
+* Salve esse arquivo com o nome `example.pdf`
+* Coloque-o na pasta:
+
+```
+tests/files/example.pdf
+```
+
+> **Atenção:** sem esse arquivo real, os testes de extração e leitura do laudo não funcionarão corretamente.
+
+---
+
+#### Testes automatizados
+
+Para executar todo o processo (preparação do ambiente, containers, testes e limpeza):
 
 ```bash
-docker compose exec -it web bash
-pytest -v --capture=tee-sys --tb=short tests
+make tests
 ```
+
+Esse comando:
+
+1. Gera automaticamente o arquivo `.env` (caso não exista) com `TOKEN`, `SECRET_KEY` e `APP_URL`.
+2. Cria arquivos de teste fictícios (`example.txt` e `invalid_pdf.pdf`) usando `faker-file`.
+3. Sobe o container `web` e aguarda até que esteja saudável.
+4. Executa os testes com `pytest` (incluindo testes E2E com `playwright`).
+5. Remove diretórios e arquivos temporários ao final.
+
