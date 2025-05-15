@@ -163,6 +163,17 @@ class SiscanReportExtractor(ABC):
         FileOperator.salve_text_file(self._text_output,
                                      lines, text_extra)
 
+    @classmethod
+    def to_json(cls, df: pd.DataFrame, filepath: str) -> None:
+        # Exporta o DataFrame em formato JSON estruturado
+        df.to_json(
+            filepath,
+            orient="records",
+            force_ascii=False,
+            indent=2,
+            date_format="iso"  # Exporta datas como 'YYYY-MM-DD' sem escapar
+        )
+
     def _extract_value(self, label: str, texto: str) -> Optional[str]:
         """
         Extrai o valor associado a um rótulo dentro do texto.
@@ -611,7 +622,7 @@ class SiscanReportExtractor(ABC):
                                          filename)
 
             if not PdfUtils.is_pdf_file(filename_path):
-                logger.warning(f"Arquivo ignorado: {filename_path}")
+                logger.warning(f"Arquivo não é um pdf Válido: {filename_path}. Ignorando.")
                 continue
 
             output_directory = os.path.join(self._result_output_directory,
@@ -623,6 +634,9 @@ class SiscanReportExtractor(ABC):
             # DataFrame correspondente
             pages_pending_lines, df = self._process_report(filename_path,
                                                            selected_pages)
+            if df.empty:
+                logger.warning(f"Arquivo vazio: {filename_path}, ignorando.")
+                continue
 
             df["file"] = filename  # Adiciona o nome do arquivo como uma nova
             # coluna no DataFrame
@@ -630,9 +644,6 @@ class SiscanReportExtractor(ABC):
             # Armazena os resultados no dicionário e no DataFrame consolidado
             all_pages_pending_lines[filename] = pages_pending_lines
             all_df = pd.concat([all_df, df], ignore_index=True)
-
-            break  # Apenas o primeiro arquivo é processado (comportamento a
-            # ser revisado)
 
         self._df = all_df  # Atualiza o atributo interno do objeto com o
         # DataFrame consolidado
