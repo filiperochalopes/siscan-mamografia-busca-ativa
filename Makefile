@@ -6,8 +6,12 @@ STATIC_DIR=src/static
 # Informa ao Makefile que os alvos não representam arquivos
 .PHONY: up down ps clean tests logs
 
-## Sobe os containers com build
+## Sobe os containers (sem rebuild)
 up:
+	docker compose -f $(COMPOSE_FILE) up -d
+
+## Sobe os containers com rebuild forçado
+up-build:
 	docker compose -f $(COMPOSE_FILE) up -d --build
 
 ## Derruba todos os containers
