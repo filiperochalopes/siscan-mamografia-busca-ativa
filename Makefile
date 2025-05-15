@@ -16,7 +16,7 @@ down:
 
 ## Exibe o status dos containers
 ps:
-    docker compose -f $(COMPOSE_FILE) ps
+	docker compose -f $(COMPOSE_FILE) ps
 
 ## Remove diretórios numéricos de static/, preservando css e exports
 clean:
