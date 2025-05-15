@@ -4,7 +4,7 @@ SERVICE_NAME=web
 STATIC_DIR=src/static
 
 # Informa ao Makefile que os alvos não representam arquivos
-.PHONY: up down clean tests logs
+.PHONY: up down ps clean tests logs
 
 ## Sobe os containers com build
 up:
@@ -13,6 +13,10 @@ up:
 ## Derruba todos os containers
 down:
 	docker compose -f $(COMPOSE_FILE) down --remove-orphans
+
+## Exibe o status dos containers
+ps:
+    docker compose -f $(COMPOSE_FILE) ps
 
 ## Remove diretórios numéricos de static/, preservando css e exports
 clean:
